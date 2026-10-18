@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatórios — Painel Admin Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/barra-lateral.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    let dadosRelatorioActual = null;
+
+    (async () => {
+      await exigirSessaoAdmin();
+
+      document.getElementById('app-shell').innerHTML = montarBarraLateral('relatorios') + `
+        <main class="conteudo">
+          <div class="cabecalho-pagina">
+            <div>
+              <h1>Relatórios de Vendas</h1>
+              <p>Estatísticas de vendas, produtos e cidades de entrega</p>
+            </div>
+            <button class="btn btn-primario" id="btn-pdf" disabled>⬇ Descarregar PDF</button>
+          </div>
+
+          <div class="painel">
+            <div class="painel-titulo"><h2>Filtrar por período</h2></div>
+            <div class="grade-form-2">
+              <div>
+                <label>Data início</label>
+                <input type="date" id="data-inicio">
+              </div>
+              <div>
+                <label>Data fim</label>
+                <input type="date" id="data-fim">
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+              <button class="btn btn-primario" id="btn-filtrar">Aplicar filtro</button>
+              <button class="btn btn-secundario" id="btn-limpar">Ver tudo</button>
+            </div>
+          </div>
+
+          <div id="conteudo-relatorio">
+            <p class="vazio">A carregar…</p>
+          </div>
+        </main>
+      `;
+
+      document.getElementById('btn-filtrar').addEventListener('click', carregarRelatorio);
+      document.getElementById('btn-limpar').addEventListener('click', () => {
+        document.getElementById('data-inicio').value = '';
+        document.getElementById('data-fim').value = '';
+        carregarRelatorio();
+      });
+      document.getElementById('btn-pdf').addEventListener('click', descarregarPDF);
+
+      carregarRelatorio();
+    })();
+
+    async function carregarRelatorio() {
+      const container = document.getElementById('conteudo-relatorio');
+      const btnPdf = document.getElementById('btn-pdf');
+      btnPdf.disabled = true;
+      container.innerHTML = `<p class="vazio">A carregar…</p>`;
+
+      try {
+        const dataInicio = document.getElementById('data-inicio').value;
+        const dataFim = document.getElementById('data-fim').value;
+        dadosRelatorioActual = await obterDadosRelatorioVendas(dataInicio, dataFim);
+        renderizarRelatorio(dadosRelatorioActual);
+        btnPdf.disabled = false;
+      } catch (err) {
+        container.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+
+    function renderizarRelatorio(d) {
+      const container = document.getElementById('conteudo-relatorio');
+      const r = d.resumo;
+
+      const linhasCidade = d.porCidade.length
+        ? d.porCidade.map(c => `<tr><td>${c.cidade}</td><td>${c.encomendas}</td><td>${formatarMT(c.total)}</td></tr>`).join('')
+        : `<tr><td colspan="3" class="vazio">Sem dados.</td></tr>`;
+
+      const linhasProduto = d.porProduto.length
+        ? d.porProduto.map(p => `<tr><td>${p.nome}</td><td>${p.quantidade}</td><td>${formatarMT(p.total)}</td></tr>`).join('')
+        : `<tr><td colspan="3" class="vazio">Sem dados.</td></tr>`;
+
+      const linhasPagamento = d.porPagamento.length
+        ? d.porPagamento.map(p => `<tr><td>${p.metodo}</td><td>${p.encomendas}</td><td>${formatarMT(p.total)}</td></tr>`).join('')
+        : `<tr><td colspan="3" class="vazio">Sem dados.</td></tr>`;
+
+      const linhasEncomendas = d.encomendas.length
+        ? d.encomendas.map(e => `
+            <tr>
+              <td>${e.codigo}</td>
+              <td>${e.cliente_nome || ''}</td>
+              <td>${e.cidade_entrega || '—'}</td>
+              <td>${formatarMT(e.total)}</td>
+              <td><span class="etiqueta ${e.status}">${ROTULOS_STATUS[e.status] || e.status}</span></td>
+              <td>${formatarData(e.criado_em)}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="6" class="vazio">Nenhuma encomenda no período seleccionado.</td></tr>`;
+
+      container.innerHTML = `
+        <div class="cartoes-resumo">
+          <div class="cartao"><div class="rotulo">Vendas totais</div><div class="valor">${formatarMT(r.totalVendas)}</div></div>
+          <div class="cartao"><div class="rotulo">Nº de encomendas</div><div class="valor">${r.numEncomendas}</div></div>
+          <div class="cartao"><div class="rotulo">Ticket médio</div><div class="valor">${formatarMT(r.ticketMedio)}</div></div>
+          <div class="cartao"><div class="rotulo">Total em entregas</div><div class="valor">${formatarMT(r.totalEntrega)}</div></div>
+        </div>
+
+        <div class="painel">
+          <div class="painel-titulo"><h2>Vendas por cidade</h2></div>
+          <table><tr><th>Cidade</th><th>Encomendas</th><th>Total</th></tr>${linhasCidade}</table>
+        </div>
+
+        <div class="painel">
+          <div class="painel-titulo"><h2>Produtos mais vendidos</h2></div>
+          <table><tr><th>Produto</th><th>Qtd. vendida</th><th>Receita</th></tr>${linhasProduto}</table>
+        </div>
+
+        <div class="painel">
+          <div class="painel-titulo"><h2>Vendas por método de pagamento</h2></div>
+          <table><tr><th>Método</th><th>Encomendas</th><th>Total</th></tr>${linhasPagamento}</table>
+        </div>
+
+        <div class="painel">
+          <div class="painel-titulo"><h2>Encomendas incluídas (${d.encomendas.length})</h2></div>
+          <table><tr><th>Código</th><th>Cliente</th><th>Cidade</th><th>Total</th><th>Estado</th><th>Data</th></tr>${linhasEncomendas}</table>
+        </div>
+      `;
+    }
+
+    function formatarDataSimples(isoDateStr) {
+      const [ano, mes, dia] = isoDateStr.split('-');
+      return `${dia}/${mes}/${ano}`;
+    }
+
+    function descarregarPDF() {
+      if (!dadosRelatorioActual) return;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const d = dadosRelatorioActual;
+      const r = d.resumo;
+
+      const hoje = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const periodoTexto = (d.periodo.inicio || d.periodo.fim)
+        ? `${d.periodo.inicio ? formatarDataSimples(d.periodo.inicio) : 'Início'} a ${d.periodo.fim ? formatarDataSimples(d.periodo.fim) : hoje}`
+        : 'Todo o histórico';
+
+      const corMarca = [35, 58, 94];      // índigo
+      const corTextoSuave = [90, 83, 70]; // carvão suave
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(...corMarca);
+      doc.text('Al Muzawad', 14, 18);
+
+      doc.setFontSize(13);
+      doc.setTextColor(40, 35, 25);
+      doc.text('Relatório de Vendas', 14, 26);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...corTextoSuave);
+      doc.text(`Período: ${periodoTexto}`, 14, 33);
+      doc.text(`Gerado em: ${hoje}`, 14, 38);
+
+      let y = 48;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(30, 25, 20);
+      doc.text('Resumo', 14, y);
+      y += 6;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      [
+        `Vendas totais: ${formatarMT(r.totalVendas)}`,
+        `Nº de encomendas: ${r.numEncomendas}`,
+        `Ticket médio: ${formatarMT(r.ticketMedio)}`,
+        `Total cobrado em entregas: ${formatarMT(r.totalEntrega)}`,
+      ].forEach(linha => { doc.text(linha, 14, y); y += 5.5; });
+      y += 6;
+
+      function tituloSeccao(texto) {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(30, 25, 20);
+        doc.text(texto, 14, y);
+        y += 6;
+      }
+
+      tituloSeccao('Vendas por cidade');
+      doc.autoTable({
+        startY: y,
+        head: [['Cidade', 'Encomendas', 'Total']],
+        body: d.porCidade.length ? d.porCidade.map(c => [c.cidade, String(c.encomendas), formatarMT(c.total)]) : [['Sem dados', '-', '-']],
+        headStyles: { fillColor: corMarca },
+        styles: { fontSize: 9 },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 12;
+
+      tituloSeccao('Produtos mais vendidos');
+      doc.autoTable({
+        startY: y,
+        head: [['Produto', 'Qtd. vendida', 'Receita']],
+        body: d.porProduto.length ? d.porProduto.map(p => [p.nome, String(p.quantidade), formatarMT(p.total)]) : [['Sem dados', '-', '-']],
+        headStyles: { fillColor: corMarca },
+        styles: { fontSize: 9 },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 12;
+
+      tituloSeccao('Vendas por método de pagamento');
+      doc.autoTable({
+        startY: y,
+        head: [['Método', 'Encomendas', 'Total']],
+        body: d.porPagamento.length ? d.porPagamento.map(p => [p.metodo, String(p.encomendas), formatarMT(p.total)]) : [['Sem dados', '-', '-']],
+        headStyles: { fillColor: corMarca },
+        styles: { fontSize: 9 },
+        margin: { left: 14, right: 14 },
+      });
+      y = doc.lastAutoTable.finalY + 12;
+
+      tituloSeccao(`Encomendas incluídas (${d.encomendas.length})`);
+      doc.autoTable({
+        startY: y,
+        head: [['Código', 'Cliente', 'Cidade', 'Total', 'Estado', 'Data']],
+        body: d.encomendas.length ? d.encomendas.map(e => [
+          e.codigo,
+          e.cliente_nome || '',
+          e.cidade_entrega || '—',
+          formatarMT(e.total),
+          ROTULOS_STATUS[e.status] || e.status,
+          formatarData(e.criado_em),
+        ]) : [['—', '—', '—', '—', '—', '—']],
+        headStyles: { fillColor: corMarca },
+        styles: { fontSize: 8 },
+        margin: { left: 14, right: 14 },
+      });
+
+      const nomeFicheiro = `relatorio-vendas-al-muzawad-${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(nomeFicheiro);
+    }
+  </script>
+</body>
+</html>
