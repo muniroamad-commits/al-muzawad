@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "al-muzawad"
-  }
+  },
+  "targets": {
+    "al-muzawad": {
+      "hosting": {
+        "admin": [
+          "admin-al-muzawad"
+        ],
+        "loja": [
+          "loja-al-muzawad"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

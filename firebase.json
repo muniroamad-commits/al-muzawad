@@ -1,14 +1,20 @@
 {
-  "hosting": {
-    "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "cleanUrls": true
-  },
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "storage": {
-    "rules": "storage.rules"
-  }
+  "hosting": [
+    {
+      "target": "loja",
+      "public": "loja",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "**", "destination": "/index.html" }
+      ]
+    },
+    {
+      "target": "admin",
+      "public": "admin",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "**", "destination": "/index.html" }
+      ]
+    }
+  ]
 }
