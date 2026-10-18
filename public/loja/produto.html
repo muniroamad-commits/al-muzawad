@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Produto — Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/loja.css">
+</head>
+<body>
+  <div id="topo"></div>
+
+  <main class="conteudo" id="conteudo-produto" style="padding-top:16px;">
+    <p class="vazio">A carregar produto…</p>
+  </main>
+
+  <div class="btn-fixo-baixo" id="barra-comprar" style="display:none;">
+    <button class="btn btn-primario" id="btn-adicionar">Adicionar ao cesto</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/navegacao.js"></script>
+  <script>
+    document.getElementById('topo').innerHTML = montarTopo('Detalhe do produto');
+
+    const params = new URLSearchParams(window.location.search);
+    const produtoId = params.get('id');
+    let produtoActual = null;
+    let quantidade = 1;
+
+    async function carregar() {
+      const container = document.getElementById('conteudo-produto');
+      if (!produtoId) { container.innerHTML = `<p class="vazio">Produto não especificado.</p>`; return; }
+
+      try {
+        const p = await obterProduto(produtoId);
+        produtoActual = p;
+        const imagens = (p.imagens && p.imagens.length) ? p.imagens : [null];
+
+        container.innerHTML = `
+          <div class="galeria-produto"><img id="img-principal" src="${imgOuPlaceholder(imagens[0])}" alt="${p.nome}"></div>
+          ${imagens.length > 1 ? `
+            <div class="miniaturas">
+              ${imagens.map((img, i) => `<img src="${imgOuPlaceholder(img)}" class="${i === 0 ? 'activa' : ''}" onclick="trocarImagem('${imgOuPlaceholder(img)}', this)">`).join('')}
+            </div>` : ''}
+
+          <h1>${p.nome}</h1>
+          <div class="preco-produto">
+            ${formatarMT(p.preco_promocional || p.preco)}
+            ${p.preco_promocional ? `<span class="preco-riscado" style="font-size:1rem;">${formatarMT(p.preco)}</span>` : ''}
+          </div>
+          <p class="descricao-produto">${p.descricao_longa || p.descricao_curta || 'Produto artesanal feito à mão com ingredientes naturais.'}</p>
+
+          <div class="selector-qtd">
+            <button onclick="mudarQtd(-1)">−</button>
+            <span id="qtd-valor">1</span>
+            <button onclick="mudarQtd(1)">+</button>
+            <span style="color:#5B5346; font-size:.85rem; margin-left:10px;">${p.stock > 0 ? p.stock + ' disponíveis' : 'Esgotado'}</span>
+          </div>
+        `;
+
+        const btnBarra = document.getElementById('barra-comprar');
+        const btnAdd = document.getElementById('btn-adicionar');
+        if (p.stock > 0) {
+          btnBarra.style.display = 'block';
+        } else {
+          btnAdd.disabled = true;
+          btnAdd.textContent = 'Esgotado';
+          btnBarra.style.display = 'block';
+        }
+
+      } catch (err) {
+        container.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+
+    function trocarImagem(src, el) {
+      document.getElementById('img-principal').src = src;
+      document.querySelectorAll('.miniaturas img').forEach(i => i.classList.remove('activa'));
+      el.classList.add('activa');
+    }
+
+    function mudarQtd(delta) {
+      quantidade = Math.max(1, Math.min(produtoActual.stock, quantidade + delta));
+      document.getElementById('qtd-valor').textContent = quantidade;
+    }
+
+    document.getElementById('btn-adicionar').addEventListener('click', () => {
+      adicionarAoCesto(produtoActual, quantidade);
+      const btn = document.getElementById('btn-adicionar');
+      const textoOriginal = btn.textContent;
+      btn.textContent = 'Adicionado ✓';
+      setTimeout(() => { btn.textContent = textoOriginal; }, 1200);
+    });
+
+    carregar();
+  </script>
+</body>
+</html>

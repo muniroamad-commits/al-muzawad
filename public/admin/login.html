@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar — Painel Admin Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <div class="tela-login">
+    <div class="caixa-login">
+      <img src="assets/icone.png" alt="Al Muzawad" style="height:64px; width:64px; object-fit:contain; display:block; margin:0 auto 14px;">
+      <h1 style="text-align:center;">Painel Admin — Al Muzawad</h1>
+      <p class="sub">Gestão da loja de artesanato</p>
+
+      <form id="form-login">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="username" placeholder="admin@lojaartesanato.co.mz">
+
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" required autocomplete="current-password" placeholder="••••••••">
+
+        <button type="submit" class="btn btn-primario" style="width:100%; justify-content:center; margin-top:22px;">
+          Entrar
+        </button>
+      </form>
+
+      <div id="mensagem"></div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script>
+    document.getElementById('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const senha = document.getElementById('senha').value;
+      const msgDiv = document.getElementById('mensagem');
+      msgDiv.innerHTML = '';
+
+      try {
+        await entrarComoAdmin(email, senha);
+        window.location.href = 'index.html';
+      } catch (err) {
+        msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pedido confirmado — Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/loja.css">
+</head>
+<body>
+  <main class="conteudo" style="padding-top:60px; text-align:center;">
+    <div style="font-size:3.5rem; margin-bottom:10px;">🎉</div>
+    <h1>Pedido confirmado!</h1>
+    <p style="color:#5B5346; margin-bottom:6px;">O teu código de encomenda é:</p>
+    <p id="codigo" style="font-family:'Fraunces',serif; font-size:1.4rem; color:#B35C38; font-weight:700;"></p>
+    <p style="color:#5B5346; margin:18px 0 28px;">Vamos preparar o teu pedido com carinho. Podes acompanhar o estado em "Pedidos".</p>
+
+    <a href="pedidos.html" class="btn btn-primario" style="margin-bottom:12px;">Ver meus pedidos</a>
+    <a href="index.html" class="btn btn-secundario">Continuar a comprar</a>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    document.getElementById('codigo').textContent = params.get('codigo') || '';
+  </script>
+</body>
+</html>

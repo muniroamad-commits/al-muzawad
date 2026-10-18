@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Meu Cesto — Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/loja.css">
+</head>
+<body>
+  <div id="topo"></div>
+
+  <main class="conteudo" style="padding-top:16px;">
+    <h1>Meu Cesto</h1>
+    <div id="lista-cesto"></div>
+    <div id="resumo"></div>
+  </main>
+
+  <div class="btn-fixo-baixo" id="barra-checkout" style="display:none;">
+    <button class="btn btn-primario" onclick="window.location.href='checkout.html'">Finalizar compra</button>
+  </div>
+
+  <div id="rodape"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/navegacao.js"></script>
+  <script>
+    document.getElementById('topo').innerHTML = montarTopo('Meu Cesto');
+    document.getElementById('rodape').innerHTML = montarBarraInferior('carrinho');
+
+    function renderizar() {
+      const cesto = getCesto();
+      const listaDiv = document.getElementById('lista-cesto');
+      const resumoDiv = document.getElementById('resumo');
+      const barraCheckout = document.getElementById('barra-checkout');
+
+      if (!cesto.length) {
+        listaDiv.innerHTML = `<p class="vazio">O teu cesto está vazio.<br><br><a href="index.html" style="color:#B35C38; font-weight:600;">Ver produtos →</a></p>`;
+        resumoDiv.innerHTML = '';
+        barraCheckout.style.display = 'none';
+        return;
+      }
+
+      listaDiv.innerHTML = cesto.map(item => `
+        <div class="item-cesto">
+          <img src="${imgOuPlaceholder(item.imagem)}" alt="${item.nome}">
+          <div class="info">
+            <h3>${item.nome}</h3>
+            <div>${formatarMT(item.preco)}</div>
+            <div class="linha-acoes">
+              <div class="selector-qtd" style="margin:0; gap:8px;">
+                <button onclick="alterarQtd('${item.produto_id}', -1)" style="width:28px; height:28px;">−</button>
+                <span>${item.quantidade}</span>
+                <button onclick="alterarQtd('${item.produto_id}', 1)" style="width:28px; height:28px;">+</button>
+              </div>
+              <button class="remover" onclick="removerItem('${item.produto_id}')">Remover</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      const total = totalCesto();
+      resumoDiv.innerHTML = `
+        <div class="resumo-total">
+          <div class="linha-resumo"><span>Subtotal</span><span>${formatarMT(total)}</span></div>
+          <div class="linha-resumo"><span>Entrega</span><span>Calculada no checkout</span></div>
+          <div class="linha-resumo total"><span>Total</span><span>${formatarMT(total)}</span></div>
+        </div>
+      `;
+      barraCheckout.style.display = 'block';
+    }
+
+    function alterarQtd(produtoId, delta) {
+      const item = getCesto().find(i => i.produto_id === produtoId);
+      if (item) actualizarQuantidadeCesto(produtoId, item.quantidade + delta);
+      renderizar();
+    }
+
+    function removerItem(produtoId) {
+      removerDoCesto(produtoId);
+      renderizar();
+    }
+
+    renderizar();
+  </script>
+</body>
+</html>

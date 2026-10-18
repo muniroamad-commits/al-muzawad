@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encomendas — Painel Admin Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/barra-lateral.js"></script>
+  <script>
+    (async () => {
+      await exigirSessaoAdmin();
+
+      document.getElementById('app-shell').innerHTML = montarBarraLateral('encomendas') + `
+        <main class="conteudo">
+          <div class="cabecalho-pagina">
+            <div>
+              <h1>Encomendas</h1>
+              <p>Acompanha e actualiza o estado de cada encomenda</p>
+            </div>
+            <select id="filtro-status" style="width:auto;">
+              <option value="">Todos os estados</option>
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="em_preparacao">Em preparação</option>
+              <option value="enviado">Enviado</option>
+              <option value="entregue">Entregue</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+
+          <div class="painel">
+            <table id="tabela-encomendas"><tbody></tbody></table>
+          </div>
+
+          <div class="painel" id="painel-detalhe" style="display:none;"></div>
+        </main>
+      `;
+
+      document.getElementById('filtro-status').addEventListener('change', carregarEncomendas);
+      carregarEncomendas();
+    })();
+
+    async function carregarEncomendas() {
+      const status = document.getElementById('filtro-status').value;
+      const tbody = document.querySelector('#tabela-encomendas tbody');
+      tbody.innerHTML = `<tr><td colspan="6" class="vazio">A carregar…</td></tr>`;
+
+      try {
+        const lista = await listarEncomendasAdmin(status);
+        if (!lista.length) {
+          tbody.innerHTML = `<tr><td colspan="6" class="vazio">Nenhuma encomenda encontrada.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = `<tr><th>Código</th><th>Cliente</th><th>Total</th><th>Pagamento</th><th>Estado</th><th>Data</th><th></th></tr>` +
+          lista.map(e => `
+            <tr>
+              <td>${e.codigo}</td>
+              <td>${e.cliente_nome}<br><span style="color:#5B5346; font-size:.8rem;">${e.cliente_telefone || ''}</span></td>
+              <td>${formatarMT(e.total)}</td>
+              <td>${e.metodo_pagamento.toUpperCase()} · ${e.estado_pagamento}</td>
+              <td><span class="etiqueta ${e.status}">${ROTULOS_STATUS[e.status]}</span></td>
+              <td>${formatarData(e.criado_em)}</td>
+              <td><button class="btn btn-secundario btn-pequeno" onclick="verDetalhe('${e.id}')">Ver</button></td>
+            </tr>`).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="mensagem-erro">${err.message}</div></td></tr>`;
+      }
+    }
+
+    async function verDetalhe(id) {
+      const painel = document.getElementById('painel-detalhe');
+      painel.style.display = 'block';
+      painel.innerHTML = `<p class="vazio">A carregar…</p>`;
+      painel.scrollIntoView({ behavior: 'smooth' });
+
+      const e = await obterEncomendaAdmin(id);
+
+      const itensHtml = e.itens.map(it => `
+        <tr>
+          <td>${it.nome_produto}</td>
+          <td>${it.quantidade}</td>
+          <td>${formatarMT(it.preco_unitario)}</td>
+          <td>${formatarMT(it.subtotal)}</td>
+        </tr>`).join('');
+
+      const opcoesStatus = Object.keys(ROTULOS_STATUS).map(s =>
+        `<option value="${s}" ${s === e.status ? 'selected' : ''}>${ROTULOS_STATUS[s]}</option>`
+      ).join('');
+
+      painel.innerHTML = `
+        <div class="painel-titulo">
+          <h2>Encomenda ${e.codigo}</h2>
+          <button class="btn btn-secundario btn-pequeno" onclick="document.getElementById('painel-detalhe').style.display='none'">Fechar</button>
+        </div>
+
+        <p><strong>Endereço de entrega:</strong> ${e.endereco_entrega} ${e.cidade_entrega ? '— ' + e.cidade_entrega : ''}</p>
+        <p><strong>Contacto:</strong> ${e.telefone_contacto || '—'}</p>
+        <p><strong>Pagamento:</strong> ${e.metodo_pagamento.toUpperCase()} (${e.estado_pagamento})
+           ${e.referencia_pagamento ? '· ref: ' + e.referencia_pagamento : ''}</p>
+        ${e.notas ? `<p><strong>Notas:</strong> ${e.notas}</p>` : ''}
+
+        <table style="margin-top:14px;">
+          <tr><th>Produto</th><th>Qtd</th><th>Preço</th><th>Subtotal</th></tr>
+          ${itensHtml}
+        </table>
+
+        <p style="margin-top:12px; text-align:right;">
+          Subtotal: ${formatarMT(e.subtotal)}<br>
+          Entrega: ${formatarMT(e.taxa_entrega)}<br>
+          <strong style="font-size:1.1rem;">Total: ${formatarMT(e.total)}</strong>
+        </p>
+
+        <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+          <select id="novo-status" style="width:auto;">${opcoesStatus}</select>
+          <button class="btn btn-primario btn-pequeno" onclick="actualizarStatus('${e.id}')">Actualizar estado</button>
+        </div>
+        <div id="detalhe-mensagem"></div>
+      `;
+    }
+
+    async function actualizarStatus(id) {
+      const novoStatus = document.getElementById('novo-status').value;
+      const msgDiv = document.getElementById('detalhe-mensagem');
+      try {
+        await actualizarEstadoEncomenda(id, novoStatus);
+        msgDiv.innerHTML = `<div class="mensagem-sucesso">Estado actualizado.</div>`;
+        carregarEncomendas();
+      } catch (err) {
+        msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

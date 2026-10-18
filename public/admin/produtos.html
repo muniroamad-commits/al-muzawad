@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Produtos — Painel Admin Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/barra-lateral.js"></script>
+  <script>
+    let categorias = [];
+    let produtoEditandoId = null;
+
+    (async () => {
+      await exigirSessaoAdmin();
+
+      document.getElementById('app-shell').innerHTML = montarBarraLateral('produtos') + `
+        <main class="conteudo">
+          <div class="cabecalho-pagina">
+            <div>
+              <h1>Produtos</h1>
+              <p>Faz upload e gere o catálogo que aparece na app</p>
+            </div>
+            <button class="btn btn-primario" onclick="abrirFormulario()">+ Novo produto</button>
+          </div>
+
+          <div class="painel" id="painel-formulario" style="display:none;"></div>
+
+          <div class="grelha-produtos" id="grelha-produtos">
+            <p class="vazio">A carregar produtos…</p>
+          </div>
+        </main>
+      `;
+
+      await carregarCategorias();
+      await carregarProdutos();
+    })();
+
+    async function carregarCategorias() {
+      categorias = await listarCategoriasAdmin();
+    }
+
+    async function carregarProdutos() {
+      const grelha = document.getElementById('grelha-produtos');
+      try {
+        const produtos = await listarProdutosAdmin();
+        if (!produtos.length) {
+          grelha.innerHTML = `<p class="vazio">Ainda não tens produtos. Clica em "Novo produto" para começar.</p>`;
+          return;
+        }
+        grelha.innerHTML = produtos.map(p => `
+          <div class="cartao-produto">
+            <img src="${p.imagem || 'https://placehold.co/300x200?text=Sem+Imagem'}" alt="${p.nome}">
+            <div class="corpo">
+              <h3>${p.nome}</h3>
+              <div class="preco">${formatarMT(p.preco_promocional || p.preco)}</div>
+              <div style="font-size:.8rem; color:#5B5346; margin-top:4px;">
+                ${p.categoria_nome || 'Sem categoria'} · ${p.activo ? 'Activo' : 'Inactivo'}
+              </div>
+              <div class="${p.stock <= p.stock_minimo ? 'stock-baixo' : ''}" style="font-size:.82rem; margin-top:4px;">
+                Stock: ${p.stock} un.
+              </div>
+              <div class="acoes">
+                <button class="btn btn-secundario btn-pequeno" onclick="editarProduto('${p.id}')">Editar</button>
+                <button class="btn btn-perigo btn-pequeno" onclick="apagarProdutoTela('${p.id}')">Apagar</button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        grelha.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+
+    function opcoesCategorias(seleccionadaId = null) {
+      return categorias.map(c =>
+        `<option value="${c.id}" ${c.id == seleccionadaId ? 'selected' : ''}>${c.nome}</option>`
+      ).join('');
+    }
+
+    function abrirFormulario(produto = null) {
+      produtoEditandoId = produto ? produto.id : null;
+      const painel = document.getElementById('painel-formulario');
+      painel.style.display = 'block';
+      painel.innerHTML = `
+        <div class="painel-titulo"><h2>${produto ? 'Editar produto' : 'Novo produto'}</h2></div>
+        <form id="form-produto">
+          <div class="grade-form-2">
+            <div>
+              <label>Nome do produto</label>
+              <input type="text" id="p-nome" required value="${produto?.nome || ''}">
+            </div>
+            <div>
+              <label>Categoria</label>
+              <select id="p-categoria">${opcoesCategorias(produto?.categoria_id)}</select>
+            </div>
+          </div>
+
+          <label>Descrição curta (aparece na lista)</label>
+          <input type="text" id="p-desc-curta" maxlength="255" value="${produto?.descricao_curta || ''}">
+
+          <label>Descrição completa (aparece na página do produto)</label>
+          <textarea id="p-desc-longa">${produto?.descricao_longa || ''}</textarea>
+
+          <div class="grade-form-2">
+            <div>
+              <label>Preço (MT)</label>
+              <input type="number" id="p-preco" step="0.01" required value="${produto?.preco || ''}">
+            </div>
+            <div>
+              <label>Preço promocional (opcional)</label>
+              <input type="number" id="p-preco-promo" step="0.01" value="${produto?.preco_promocional || ''}">
+            </div>
+          </div>
+
+          <div class="grade-form-2">
+            <div>
+              <label>Stock disponível</label>
+              <input type="number" id="p-stock" required value="${produto?.stock ?? 0}">
+            </div>
+            <div>
+              <label>Alerta de stock mínimo</label>
+              <input type="number" id="p-stock-min" value="${produto?.stock_minimo ?? 3}">
+            </div>
+          </div>
+
+          <label><input type="checkbox" id="p-activo" style="width:auto; display:inline-block; margin-right:6px;" ${produto?.activo != 0 ? 'checked' : ''}> Visível na app</label>
+
+          ${produto ? `
+          <label>Fotos do produto</label>
+          <div class="upload-imagens" id="lista-imagens"></div>
+          <input type="file" id="p-imagem" accept="image/jpeg,image/png,image/webp" style="margin-top:10px;">
+          <button type="button" class="btn btn-secundario btn-pequeno" style="margin-top:8px;" onclick="enviarImagem('${produto.id}')">Enviar foto</button>
+          ` : `<p style="color:#5B5346; font-size:.85rem; margin-top:14px;">Depois de guardares o produto podes adicionar fotos.</p>`}
+
+          <div style="margin-top:22px; display:flex; gap:10px;">
+            <button type="submit" class="btn btn-primario">Guardar produto</button>
+            <button type="button" class="btn btn-secundario" onclick="fecharFormulario()">Cancelar</button>
+          </div>
+          <div id="form-mensagem"></div>
+        </form>
+      `;
+
+      document.getElementById('form-produto').addEventListener('submit', guardarProduto);
+      if (produto) carregarImagensProduto(produto.id);
+      painel.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function fecharFormulario() {
+      document.getElementById('painel-formulario').style.display = 'none';
+      produtoEditandoId = null;
+    }
+
+    async function guardarProduto(e) {
+      e.preventDefault();
+      const categoriaIdSeleccionada = document.getElementById('p-categoria').value || null;
+      const categoriaSeleccionada = categorias.find(c => c.id === categoriaIdSeleccionada);
+      const corpo = {
+        nome: document.getElementById('p-nome').value.trim(),
+        categoria_id: categoriaIdSeleccionada,
+        categoria_slug: categoriaSeleccionada ? categoriaSeleccionada.slug : null,
+        descricao_curta: document.getElementById('p-desc-curta').value.trim(),
+        descricao_longa: document.getElementById('p-desc-longa').value.trim(),
+        preco: parseFloat(document.getElementById('p-preco').value),
+        preco_promocional: document.getElementById('p-preco-promo').value
+          ? parseFloat(document.getElementById('p-preco-promo').value) : null,
+        stock: parseInt(document.getElementById('p-stock').value, 10),
+        stock_minimo: parseInt(document.getElementById('p-stock-min').value, 10),
+        activo: document.getElementById('p-activo').checked,
+      };
+
+      const msgDiv = document.getElementById('form-mensagem');
+      try {
+        if (produtoEditandoId) {
+          await actualizarProduto(produtoEditandoId, corpo);
+          msgDiv.innerHTML = `<div class="mensagem-sucesso">Produto actualizado.</div>`;
+        } else {
+          const resp = await criarProduto(corpo);
+          msgDiv.innerHTML = `<div class="mensagem-sucesso">Produto criado. Podes agora adicionar fotos ao editá-lo.</div>`;
+          produtoEditandoId = resp.id;
+        }
+        carregarProdutos();
+      } catch (err) {
+        msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+
+    async function editarProduto(id) {
+      const produto = await obterProdutoAdmin(id);
+      abrirFormulario(produto);
+    }
+
+    async function apagarProdutoTela(id) {
+      if (!confirm('Tens a certeza que queres apagar este produto?')) return;
+      try {
+        await apagarProduto(id);
+        carregarProdutos();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function carregarImagensProduto(id) {
+      const produto = await obterProdutoAdmin(id);
+      const lista = document.getElementById('lista-imagens');
+      lista.innerHTML = (produto.imagens && produto.imagens.length)
+        ? produto.imagens.map(url => `<img src="${url}" alt="">`).join('')
+        : `<span style="color:#5B5346; font-size:.85rem;">Sem fotos ainda.</span>`;
+    }
+
+    async function enviarImagem(produtoId) {
+      const input = document.getElementById('p-imagem');
+      if (!input.files.length) { alert('Escolhe uma foto primeiro.'); return; }
+
+      try {
+        await enviarImagemProduto(produtoId, input.files[0]);
+        input.value = '';
+        carregarImagensProduto(produtoId);
+        carregarProdutos();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  </script>
+</body>
+</html>

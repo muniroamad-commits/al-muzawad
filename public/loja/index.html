@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/loja.css">
+</head>
+<body>
+  <div id="topo"></div>
+
+  <div class="faixa-busca">
+    <input type="text" id="campo-busca" placeholder="Procurar sabonetes, velas…">
+  </div>
+
+  <div class="chips-categorias" id="chips-categorias"></div>
+
+  <main class="conteudo">
+    <div class="grelha-produtos" id="grelha-produtos">
+      <p class="vazio">A carregar produtos…</p>
+    </div>
+  </main>
+
+  <div id="rodape"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/navegacao.js"></script>
+  <script>
+    document.getElementById('topo').innerHTML = montarTopo('Al Muzawad');
+    document.getElementById('rodape').innerHTML = montarBarraInferior('loja');
+    actualizarContagemCesto();
+
+    let categoriaActiva = '';
+
+    async function carregarCategorias() {
+      const categorias = await listarCategorias();
+      const chipsDiv = document.getElementById('chips-categorias');
+      chipsDiv.innerHTML = `<div class="chip activo" data-slug="">Todos</div>` +
+        categorias.map(c => `<div class="chip" data-slug="${c.slug}">${c.nome}</div>`).join('');
+
+      chipsDiv.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          chipsDiv.querySelectorAll('.chip').forEach(c => c.classList.remove('activo'));
+          chip.classList.add('activo');
+          categoriaActiva = chip.dataset.slug;
+          carregarProdutos();
+        });
+      });
+    }
+
+    async function carregarProdutos() {
+      const grelha = document.getElementById('grelha-produtos');
+      grelha.innerHTML = `<p class="vazio">A carregar produtos…</p>`;
+
+      const busca = document.getElementById('campo-busca').value.trim();
+
+      try {
+        const produtos = await listarProdutos({ categoriaSlug: categoriaActiva, busca });
+        if (!produtos.length) {
+          grelha.innerHTML = `<p class="vazio">Nenhum produto encontrado.</p>`;
+          return;
+        }
+        grelha.innerHTML = produtos.map(p => `
+          <a href="produto.html?id=${p.id}" class="cartao-produto">
+            <div class="img-wrap"><img src="${imgOuPlaceholder(p.imagem)}" alt="${p.nome}"></div>
+            <div class="corpo">
+              <h3>${p.nome}</h3>
+              <div class="preco">
+                ${formatarMT(p.preco_promocional || p.preco)}
+                ${p.preco_promocional ? `<span class="preco-riscado">${formatarMT(p.preco)}</span>` : ''}
+              </div>
+            </div>
+          </a>
+        `).join('');
+      } catch (err) {
+        grelha.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+
+    let timeoutBusca;
+    document.getElementById('campo-busca').addEventListener('input', () => {
+      clearTimeout(timeoutBusca);
+      timeoutBusca = setTimeout(carregarProdutos, 400);
+    });
+
+    carregarCategorias();
+    carregarProdutos();
+  </script>
+</body>
+</html>

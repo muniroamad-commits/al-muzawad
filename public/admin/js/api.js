@@ -1,0 +1,206 @@
+/**
+ * Camada de dados do painel admin, usando Firebase (Auth + Firestore + Storage).
+ */
+
+/* ---------------- Sessão do admin ---------------- */
+
+let _authProntoPromiseAdmin = null;
+function aguardarAuthAdmin() {
+  if (!_authProntoPromiseAdmin) {
+    _authProntoPromiseAdmin = new Promise((resolve) => {
+      const cancelar = auth.onAuthStateChanged((user) => { cancelar(); resolve(user); });
+    });
+  }
+  return _authProntoPromiseAdmin;
+}
+
+function limparSessao() {
+  auth.signOut();
+}
+
+/** Protege uma página: redirecciona para login se não houver sessão de admin válida. */
+async function exigirSessaoAdmin() {
+  const user = await aguardarAuthAdmin();
+  if (!user) { window.location.href = 'login.html'; return; }
+
+  const doc = await db.collection('admins').doc(user.uid).get();
+  if (!doc.exists) {
+    await auth.signOut();
+    window.location.href = 'login.html';
+    return;
+  }
+  localStorage.setItem('admin_nome', doc.data().nome || user.email || 'Admin');
+}
+
+async function entrarComoAdmin(email, senha) {
+  try {
+    const cred = await auth.signInWithEmailAndPassword(email, senha);
+    const doc = await db.collection('admins').doc(cred.user.uid).get();
+    if (!doc.exists) {
+      await auth.signOut();
+      throw new Error('Esta conta não tem acesso ao painel admin.');
+    }
+    localStorage.setItem('admin_nome', doc.data().nome || cred.user.email);
+    return cred.user;
+  } catch (err) {
+    throw new Error(traduzirErroAuthAdmin(err));
+  }
+}
+
+function traduzirErroAuthAdmin(err) {
+  const mapa = {
+    'auth/invalid-email': 'Email inválido.',
+    'auth/user-not-found': 'Credenciais inválidas.',
+    'auth/wrong-password': 'Credenciais inválidas.',
+    'auth/invalid-credential': 'Credenciais inválidas.',
+  };
+  return mapa[err.code] || err.message || 'Ocorreu um erro inesperado.';
+}
+
+/* ---------------- Categorias ---------------- */
+
+function gerarSlug(nome) {
+  return nome.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+async function listarCategoriasAdmin() {
+  const snap = await db.collection('categorias').orderBy('nome').get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function criarCategoria(nome) {
+  const slug = gerarSlug(nome);
+  const ref = await db.collection('categorias').add({ nome, slug });
+  return { id: ref.id };
+}
+
+/* ---------------- Produtos ---------------- */
+
+async function listarProdutosAdmin() {
+  const [produtosSnap, categorias] = await Promise.all([
+    db.collection('produtos').orderBy('nome').get(),
+    listarCategoriasAdmin(),
+  ]);
+  const mapaCategorias = {};
+  categorias.forEach(c => { mapaCategorias[c.id] = c.nome; });
+
+  return produtosSnap.docs.map(d => {
+    const p = { id: d.id, ...d.data() };
+    p.categoria_nome = mapaCategorias[p.categoria_id] || null;
+    p.imagem = (p.imagens && p.imagens[0]) || null;
+    return p;
+  });
+}
+
+async function obterProdutoAdmin(id) {
+  const doc = await db.collection('produtos').doc(id).get();
+  if (!doc.exists) throw new Error('Produto não encontrado.');
+  return { id: doc.id, ...doc.data() };
+}
+
+async function criarProduto(dados) {
+  dados.imagens = [];
+  dados.criado_em = firebase.firestore.FieldValue.serverTimestamp();
+  const ref = await db.collection('produtos').add(dados);
+  return { id: ref.id };
+}
+
+async function actualizarProduto(id, dados) {
+  await db.collection('produtos').doc(id).update(dados);
+  return { id };
+}
+
+async function apagarProduto(id) {
+  await db.collection('produtos').doc(id).delete();
+}
+
+/** Faz upload da foto para o Firebase Storage e adiciona o URL ao produto. */
+async function enviarImagemProduto(produtoId, ficheiro) {
+  const caminho = `produtos/${produtoId}/${Date.now()}_${ficheiro.name}`;
+  const ref = storage.ref(caminho);
+  await ref.put(ficheiro);
+  const url = await ref.getDownloadURL();
+
+  await db.collection('produtos').doc(produtoId).update({
+    imagens: firebase.firestore.FieldValue.arrayUnion(url),
+  });
+  return { url };
+}
+
+/* ---------------- Encomendas ---------------- */
+
+async function listarEncomendasAdmin(status = '') {
+  let query = db.collection('encomendas').orderBy('criado_em', 'desc');
+  if (status) query = db.collection('encomendas').where('status', '==', status).orderBy('criado_em', 'desc');
+  const snap = await query.get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function obterEncomendaAdmin(id) {
+  const doc = await db.collection('encomendas').doc(id).get();
+  if (!doc.exists) throw new Error('Encomenda não encontrada.');
+  return { id: doc.id, ...doc.data() };
+}
+
+async function actualizarEstadoEncomenda(id, status) {
+  await db.collection('encomendas').doc(id).update({ status });
+}
+
+/* ---------------- Dashboard ---------------- */
+
+async function obterDashboard() {
+  const [encomendasSnap, clientesSnap] = await Promise.all([
+    db.collection('encomendas').orderBy('criado_em', 'desc').get(),
+    db.collection('clientes').get(),
+  ]);
+  const encomendas = encomendasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+  let vendas_hoje = 0, vendas_mes = 0, encomendas_pendentes = 0;
+  encomendas.forEach(e => {
+    const data = e.criado_em?.toDate ? e.criado_em.toDate() : null;
+    if (data && e.estado_pagamento === 'pago') {
+      if (data >= hoje) vendas_hoje += e.total || 0;
+      if (data >= inicioMes) vendas_mes += e.total || 0;
+    }
+    if (['pendente', 'pago', 'confirmado'].includes(e.status)) encomendas_pendentes++;
+  });
+
+  const produtosSnap = await db.collection('produtos').get();
+  const produtos_stock_baixo = produtosSnap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(p => (p.stock ?? 0) <= (p.stock_minimo ?? 3));
+
+  return {
+    vendas_hoje, vendas_mes, encomendas_pendentes,
+    total_clientes: clientesSnap.size,
+    ultimas_encomendas: encomendas.slice(0, 5),
+    produtos_stock_baixo,
+  };
+}
+
+/* ---------------- Utilitários ---------------- */
+
+function formatarMT(valor) {
+  return new Intl.NumberFormat('pt-MZ', { minimumFractionDigits: 2 }).format(valor || 0) + ' MT';
+}
+
+function formatarData(valor) {
+  if (!valor) return '';
+  const d = valor.toDate ? valor.toDate() : new Date(valor);
+  return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+const ROTULOS_STATUS = {
+  pendente: 'Pendente',
+  pago: 'Pago',
+  confirmado: 'Confirmado',
+  em_preparacao: 'Em preparação',
+  enviado: 'Enviado',
+  entregue: 'Entregue',
+  cancelado: 'Cancelado',
+};

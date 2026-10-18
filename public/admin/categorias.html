@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Categorias — Painel Admin Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/barra-lateral.js"></script>
+  <script>
+    (async () => {
+      await exigirSessaoAdmin();
+
+      document.getElementById('app-shell').innerHTML = montarBarraLateral('categorias') + `
+        <main class="conteudo">
+          <div class="cabecalho-pagina">
+            <div>
+              <h1>Categorias</h1>
+              <p>Organiza os produtos por tipo (ex: Sabonetes, Velas)</p>
+            </div>
+          </div>
+
+          <div class="painel">
+            <form id="form-categoria" style="display:flex; gap:10px; align-items:flex-end;">
+              <div style="flex:1;">
+                <label>Nome da categoria</label>
+                <input type="text" id="c-nome" required placeholder="ex: Óleos Essenciais">
+              </div>
+              <button type="submit" class="btn btn-primario">Adicionar</button>
+            </form>
+            <div id="form-mensagem"></div>
+          </div>
+
+          <div class="painel">
+            <table id="tabela-categorias"><tbody></tbody></table>
+          </div>
+        </main>
+      `;
+
+      document.getElementById('form-categoria').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nome = document.getElementById('c-nome').value.trim();
+        const msgDiv = document.getElementById('form-mensagem');
+        try {
+          await criarCategoria(nome);
+          document.getElementById('c-nome').value = '';
+          msgDiv.innerHTML = `<div class="mensagem-sucesso">Categoria adicionada.</div>`;
+          carregarCategorias();
+        } catch (err) {
+          msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+        }
+      });
+
+      carregarCategorias();
+    })();
+
+    async function carregarCategorias() {
+      const tbody = document.querySelector('#tabela-categorias tbody');
+      const lista = await listarCategoriasAdmin();
+      tbody.innerHTML = lista.length
+        ? `<tr><th>Nome</th><th>Slug</th></tr>` + lista.map(c => `<tr><td>${c.nome}</td><td>${c.slug}</td></tr>`).join('')
+        : `<tr><td class="vazio">Nenhuma categoria ainda.</td></tr>`;
+    }
+  </script>
+</body>
+</html>

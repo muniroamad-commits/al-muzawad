@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Criar Conta — Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/loja.css">
+</head>
+<body>
+  <main class="conteudo" style="padding-top:50px; max-width:420px;">
+    <img src="assets/icone.png" alt="Al Muzawad" style="height:64px; width:64px; object-fit:contain; display:block; margin:0 auto 14px;">
+    <h1 style="text-align:center;">Criar conta</h1>
+    <p style="text-align:center; color:#5B5346; margin-bottom:26px;">Para comprares com rapidez da próxima vez</p>
+
+    <a href="login.html" class="btn btn-secundario" style="margin-bottom:18px;">Criar conta com Google ou Facebook →</a>
+    <div style="display:flex; align-items:center; gap:12px; margin:18px 0; color:#5B5346; font-size:.82rem;">
+      <div style="flex:1; height:1px; background:#E3D5B8;"></div>com email<div style="flex:1; height:1px; background:#E3D5B8;"></div>
+    </div>
+
+    <form id="form-registo">
+      <label>Nome completo</label>
+      <input type="text" id="nome" required>
+
+      <label>Email</label>
+      <input type="email" id="email" required autocomplete="username">
+
+      <label>Telefone</label>
+      <input type="tel" id="telefone" required placeholder="84/85 xxx xxxx">
+
+      <label>Senha</label>
+      <input type="password" id="senha" required minlength="6" autocomplete="new-password">
+
+      <button type="submit" class="btn btn-primario" style="margin-top:22px;">Criar conta</button>
+      <div id="mensagem"></div>
+    </form>
+
+    <p style="text-align:center; margin-top:20px; color:#5B5346; font-size:.9rem;">
+      Já tens conta? <a href="login.html" style="color:#B35C38; font-weight:600;">Entrar</a>
+    </p>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script>
+    document.getElementById('form-registo').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msgDiv = document.getElementById('mensagem');
+      try {
+        await registarComEmail(
+          document.getElementById('nome').value.trim(),
+          document.getElementById('email').value.trim(),
+          document.getElementById('senha').value,
+          document.getElementById('telefone').value.trim()
+        );
+        window.location.href = 'index.html';
+      } catch (err) {
+        msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Meus Pedidos — Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/loja.css">
+</head>
+<body>
+  <div id="topo"></div>
+
+  <main class="conteudo" style="padding-top:16px;">
+    <h1>Meus pedidos</h1>
+    <div id="lista-pedidos"><p class="vazio">A carregar…</p></div>
+  </main>
+
+  <div id="rodape"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/navegacao.js"></script>
+  <script>
+    document.getElementById('topo').innerHTML = montarTopo('Meus pedidos');
+    document.getElementById('rodape').innerHTML = montarBarraInferior('pedidos');
+
+    async function carregar() {
+      const lista = document.getElementById('lista-pedidos');
+      await aguardarAuth();
+
+      if (!estaAutenticado()) {
+        lista.innerHTML = `<p class="vazio">Entra na tua conta para veres os teus pedidos.<br><br>
+          <a href="login.html?proximo=pedidos.html" style="color:#B35C38; font-weight:600;">Entrar →</a></p>`;
+        return;
+      }
+
+      try {
+        const pedidos = await listarMinhasEncomendas();
+        if (!pedidos.length) {
+          lista.innerHTML = `<p class="vazio">Ainda não fizeste nenhum pedido.<br><br>
+            <a href="index.html" style="color:#B35C38; font-weight:600;">Ver produtos →</a></p>`;
+          return;
+        }
+        lista.innerHTML = pedidos.map(p => `
+          <div class="cartao-pedido">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>${p.codigo}</strong>
+              <span class="etiqueta-estado ${p.status}">${ROTULOS_STATUS[p.status]}</span>
+            </div>
+            <p style="color:#5B5346; font-size:.85rem; margin:6px 0;">${formatarData(p.criado_em)}</p>
+            <p style="font-weight:700;">${formatarMT(p.total)}</p>
+          </div>
+        `).join('');
+      } catch (err) {
+        lista.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+
+    carregar();
+  </script>
+</body>
+</html>

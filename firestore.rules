@@ -1,0 +1,51 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isOwner(clienteId) {
+      return request.auth != null && request.auth.uid == clienteId;
+    }
+
+    // Catálogo: qualquer visitante pode ler (loja pública).
+    // Só admins autenticados podem escrever.
+    match /categorias/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /produtos/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Perfis de admin: cada admin só lê o seu próprio registo
+    // (a existência do doc é o que concede o papel de admin).
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false; // criado manualmente na consola/Firestore, nunca pelo cliente
+    }
+
+    // Perfis de cliente: o próprio cliente lê/escreve o seu perfil; admin lê todos.
+    match /clientes/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid);
+    }
+
+    // Encomendas: cliente cria as suas próprias e só lê as suas;
+    // admin lê e actualiza todas (para mudar o estado da encomenda).
+    match /encomendas/{id} {
+      allow create: if request.auth != null &&
+        request.resource.data.cliente_id == request.auth.uid;
+      allow read: if isAdmin() ||
+        (request.auth != null && resource.data.cliente_id == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+  }
+}

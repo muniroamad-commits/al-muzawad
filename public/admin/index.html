@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Painel Admin Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/barra-lateral.js"></script>
+  <script>
+    (async () => {
+    await exigirSessaoAdmin();
+
+    document.getElementById('app-shell').innerHTML = montarBarraLateral('dashboard') + `
+      <main class="conteudo">
+        <div class="cabecalho-pagina">
+          <div>
+            <h1>Dashboard</h1>
+            <p>Resumo da loja em tempo real</p>
+          </div>
+        </div>
+
+        <div class="cartoes-resumo" id="cartoes-resumo"></div>
+
+        <div class="painel">
+          <div class="painel-titulo"><h2>Últimas encomendas</h2>
+            <a href="encomendas.html">Ver todas →</a>
+          </div>
+          <table id="tabela-encomendas"><tbody></tbody></table>
+        </div>
+
+        <div class="painel">
+          <div class="painel-titulo"><h2>Produtos com stock baixo</h2></div>
+          <table id="tabela-stock"><tbody></tbody></table>
+        </div>
+      </main>
+    `;
+
+    carregar();
+    })();
+
+    async function carregar() {
+      try {
+        const d = await obterDashboard();
+
+        document.getElementById('cartoes-resumo').innerHTML = `
+          <div class="cartao"><div class="rotulo">Vendas hoje</div><div class="valor">${formatarMT(d.vendas_hoje)}</div></div>
+          <div class="cartao"><div class="rotulo">Vendas este mês</div><div class="valor">${formatarMT(d.vendas_mes)}</div></div>
+          <div class="cartao"><div class="rotulo">Encomendas por tratar</div><div class="valor">${d.encomendas_pendentes}</div></div>
+          <div class="cartao"><div class="rotulo">Clientes registados</div><div class="valor">${d.total_clientes}</div></div>
+        `;
+
+        const corpoEnc = d.ultimas_encomendas.length
+          ? d.ultimas_encomendas.map(e => `
+              <tr>
+                <td>${e.codigo}</td>
+                <td>${e.cliente_nome}</td>
+                <td>${formatarMT(e.total)}</td>
+                <td><span class="etiqueta ${e.status}">${ROTULOS_STATUS[e.status]}</span></td>
+                <td>${formatarData(e.criado_em)}</td>
+              </tr>`).join('')
+          : `<tr><td colspan="5" class="vazio">Ainda sem encomendas.</td></tr>`;
+        document.querySelector('#tabela-encomendas tbody').innerHTML =
+          `<tr><th>Código</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Data</th></tr>` + corpoEnc;
+
+        const corpoStock = d.produtos_stock_baixo.length
+          ? d.produtos_stock_baixo.map(p => `
+              <tr>
+                <td>${p.nome}</td>
+                <td>${p.stock} un.</td>
+                <td>${p.stock_minimo} un.</td>
+              </tr>`).join('')
+          : `<tr><td colspan="3" class="vazio">Nenhum produto com stock baixo. 🎉</td></tr>`;
+        document.querySelector('#tabela-stock tbody').innerHTML =
+          `<tr><th>Produto</th><th>Stock actual</th><th>Mínimo</th></tr>` + corpoStock;
+
+      } catch (err) {
+        document.getElementById('cartoes-resumo').innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

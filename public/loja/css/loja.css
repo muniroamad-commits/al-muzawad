@@ -1,0 +1,196 @@
+/* ============================================================
+   Loja — Interface do Cliente (pronta para embrulhar em WebView Android)
+   ============================================================ */
+
+:root {
+  /* Paleta oficial da marca Al Muzawad: barro, índigo e oliveira */
+  --cor-fundo: #EDE4CF;        /* areia */
+  --cor-texto: #2A2118;        /* carvão */
+  --cor-texto-suave: #5B5346;
+  --cor-marca: #707B4A;        /* oliveira */
+  --cor-marca-escura: #233A5E; /* índigo */
+  --cor-acento: #B35C38;       /* barro */
+  --cor-acento-suave: #F1E0CB;
+  --cor-borda: #E3D5B8;
+  --raio: 14px;
+  --sombra: 0 4px 18px rgba(42, 33, 24, 0.08);
+  --fonte-titulo: 'Fraunces', Georgia, serif;
+  --fonte-corpo: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  font-family: var(--fonte-corpo);
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  padding-bottom: 70px; /* espaço para a barra inferior */
+}
+
+h1, h2, h3 { font-family: var(--fonte-titulo); color: var(--cor-marca-escura); margin: 0 0 .3em; }
+a { text-decoration: none; color: inherit; }
+img { max-width: 100%; display: block; }
+
+/* --- Cabeçalho --- */
+.topo-app {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--cor-marca-escura);
+  color: #fff;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.topo-app .marca { font-family: var(--fonte-titulo); font-size: 1.15rem; }
+.topo-app .acoes-topo { display: flex; gap: 14px; align-items: center; }
+.topo-app a { color: #EFE9DA; font-size: .85rem; position: relative; }
+.contagem-cesto {
+  position: absolute; top: -8px; right: -12px;
+  background: var(--cor-acento); color: #fff;
+  font-size: .68rem; font-weight: 700;
+  border-radius: 50%; width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.faixa-busca { padding: 14px 18px 4px; }
+.faixa-busca input {
+  width: 100%; padding: 12px 16px; border-radius: 24px;
+  border: 1px solid var(--cor-borda); background: #fff;
+  font-family: var(--fonte-corpo); font-size: .92rem;
+}
+
+/* --- Categorias (chips) --- */
+.chips-categorias {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding: 14px 18px; scrollbar-width: none;
+}
+.chips-categorias::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; padding: 8px 16px; border-radius: 20px;
+  background: #fff; border: 1px solid var(--cor-borda);
+  font-size: .85rem; color: var(--cor-texto-suave); cursor: pointer;
+}
+.chip.activo { background: var(--cor-marca); color: #fff; border-color: var(--cor-marca); }
+
+/* --- Grelha de produtos --- */
+.conteudo { padding: 4px 18px 24px; max-width: 900px; margin: 0 auto; }
+
+.grelha-produtos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.cartao-produto {
+  background: #fff;
+  border-radius: var(--raio);
+  overflow: hidden;
+  box-shadow: var(--sombra);
+}
+
+.cartao-produto .img-wrap { aspect-ratio: 1 / 1; background: var(--cor-acento-suave); overflow: hidden; }
+.cartao-produto img { width: 100%; height: 100%; object-fit: cover; }
+.cartao-produto .corpo { padding: 10px 12px 14px; }
+.cartao-produto h3 { font-size: .92rem; font-weight: 600; margin-bottom: 4px; line-height: 1.25; }
+.cartao-produto .preco { color: var(--cor-acento); font-weight: 700; font-size: .95rem; }
+.cartao-produto .preco-riscado { text-decoration: line-through; color: var(--cor-texto-suave); font-size: .78rem; font-weight: 400; margin-left: 6px; }
+
+/* --- Página de produto --- */
+.galeria-produto { aspect-ratio: 1/1; background: var(--cor-acento-suave); border-radius: var(--raio); overflow: hidden; margin-bottom: 16px; }
+.galeria-produto img { width: 100%; height: 100%; object-fit: cover; }
+.miniaturas { display: flex; gap: 8px; margin-bottom: 18px; }
+.miniaturas img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 2px solid transparent; cursor: pointer; }
+.miniaturas img.activa { border-color: var(--cor-acento); }
+
+.preco-produto { font-size: 1.5rem; color: var(--cor-acento); font-weight: 700; margin: 6px 0 14px; }
+.descricao-produto { color: var(--cor-texto-suave); line-height: 1.6; margin-bottom: 20px; }
+
+.selector-qtd { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.selector-qtd button {
+  width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--cor-borda);
+  background: #fff; font-size: 1.1rem; cursor: pointer;
+}
+.selector-qtd span { font-size: 1.05rem; min-width: 24px; text-align: center; }
+
+/* --- Carrinho --- */
+.item-cesto {
+  display: flex; gap: 12px; padding: 14px 0;
+  border-bottom: 1px solid var(--cor-borda);
+}
+.item-cesto img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; background: var(--cor-acento-suave); }
+.item-cesto .info { flex: 1; }
+.item-cesto h3 { font-size: .9rem; margin-bottom: 4px; }
+.item-cesto .linha-acoes { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.item-cesto .remover { color: var(--cor-acento); font-size: .8rem; cursor: pointer; background: none; border: none; }
+
+.resumo-total {
+  background: #fff; border-radius: var(--raio); padding: 18px;
+  box-shadow: var(--sombra); margin-top: 18px;
+}
+.linha-resumo { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 8px; color: var(--cor-texto-suave); }
+.linha-resumo.total { color: var(--cor-texto); font-weight: 700; font-size: 1.1rem; border-top: 1px solid var(--cor-borda); padding-top: 10px; margin-top: 10px; }
+
+/* --- Botões --- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 20px; border-radius: 12px; border: none;
+  font-family: var(--fonte-corpo); font-size: .95rem; font-weight: 600; cursor: pointer;
+  width: 100%;
+}
+.btn-primario { background: var(--cor-acento); color: #fff; }
+.btn-primario:disabled { opacity: .5; }
+.btn-secundario { background: #fff; color: var(--cor-marca-escura); border: 1px solid var(--cor-borda); }
+.btn-fixo-baixo {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 14px 18px; background: linear-gradient(to top, var(--cor-fundo) 60%, transparent);
+}
+
+/* --- Barra inferior de navegação (estilo app) --- */
+.barra-inferior {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #fff; border-top: 1px solid var(--cor-borda);
+  display: flex; justify-content: space-around; padding: 10px 0 14px;
+  z-index: 10;
+}
+.barra-inferior a { font-size: .7rem; color: var(--cor-texto-suave); text-align: center; display: flex; flex-direction: column; gap: 4px; }
+.barra-inferior a.activo { color: var(--cor-acento); font-weight: 600; }
+.barra-inferior .icone { font-size: 1.25rem; }
+
+/* --- Formulários --- */
+label { display: block; font-size: .85rem; color: var(--cor-texto-suave); margin-bottom: 5px; margin-top: 14px; }
+label:first-child { margin-top: 0; }
+input, textarea, select {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--cor-borda); border-radius: 10px;
+  font-family: var(--fonte-corpo); font-size: .92rem; background: #fff; color: var(--cor-texto);
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--cor-marca); }
+
+/* --- Métodos de pagamento --- */
+.opcoes-pagamento { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.opcao-pagamento {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px; border: 1px solid var(--cor-borda); border-radius: 12px; background: #fff; cursor: pointer;
+}
+.opcao-pagamento.seleccionado { border-color: var(--cor-acento); background: var(--cor-acento-suave); }
+.opcao-pagamento input { width: auto; }
+
+/* --- Estados vazios / mensagens --- */
+.vazio { text-align: center; color: var(--cor-texto-suave); padding: 40px 20px; }
+.mensagem-erro { background: #F7E2E2; color: #A73E3E; padding: 10px 14px; border-radius: 10px; font-size: .85rem; margin-top: 12px; }
+.mensagem-sucesso { background: #E2EFDA; color: #4C7A4C; padding: 10px 14px; border-radius: 10px; font-size: .85rem; margin-top: 12px; }
+
+.etiqueta-estado {
+  display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: .78rem; font-weight: 600;
+}
+.etiqueta-estado.pendente { background: #F2E4C6; color: #B38332; }
+.etiqueta-estado.pago, .etiqueta-estado.confirmado, .etiqueta-estado.entregue { background: #DCE8D6; color: #4C7A4C; }
+.etiqueta-estado.em_preparacao, .etiqueta-estado.enviado { background: #DCE1EF; color: #44568B; }
+.etiqueta-estado.cancelado { background: #F2D6D6; color: #A73E3E; }
+
+.cartao-pedido { background: #fff; border-radius: var(--raio); padding: 16px; box-shadow: var(--sombra); margin-bottom: 12px; }
+
+@media (min-width: 640px) {
+  .grelha-produtos { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+}

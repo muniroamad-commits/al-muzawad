@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Finalizar Compra — Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/loja.css">
+</head>
+<body>
+  <div id="topo"></div>
+
+  <main class="conteudo" style="padding-top:16px;">
+    <h1>Finalizar compra</h1>
+
+    <div id="verificacao-sessao"></div>
+
+    <form id="form-checkout" style="display:none;">
+      <h2 style="font-size:1.05rem; margin-top:18px;">Entrega</h2>
+      <label>Endereço completo</label>
+      <textarea id="endereco" required placeholder="Rua, bairro, referência…"></textarea>
+
+      <label>Cidade</label>
+      <input type="text" id="cidade" required placeholder="ex: Maputo">
+
+      <label>Telefone de contacto</label>
+      <input type="tel" id="telefone" required placeholder="84/85 xxx xxxx">
+
+      <label>Notas para a entrega (opcional)</label>
+      <textarea id="notas" placeholder="ex: entregar à tarde, ponto de referência…"></textarea>
+
+      <h2 style="font-size:1.05rem; margin-top:22px;">Método de pagamento</h2>
+      <div class="opcoes-pagamento" id="opcoes-pagamento">
+        <label class="opcao-pagamento">
+          <input type="radio" name="pagamento" value="mpesa"> 📱 M-Pesa
+        </label>
+        <label class="opcao-pagamento">
+          <input type="radio" name="pagamento" value="emola"> 📱 e-Mola
+        </label>
+        <label class="opcao-pagamento">
+          <input type="radio" name="pagamento" value="mkesh"> 📱 mKesh
+        </label>
+        <label class="opcao-pagamento">
+          <input type="radio" name="pagamento" value="cartao"> 💳 Cartão (Visa/Mastercard)
+        </label>
+        <label class="opcao-pagamento">
+          <input type="radio" name="pagamento" value="entrega"> 💵 Pagamento na entrega
+        </label>
+      </div>
+
+      <div id="campos-extra-pagamento"></div>
+
+      <div class="resumo-total" style="margin-top:22px;">
+        <div class="linha-resumo"><span>Subtotal</span><span id="r-subtotal"></span></div>
+        <div class="linha-resumo"><span>Entrega</span><span id="r-entrega"></span></div>
+        <div class="linha-resumo total"><span>Total</span><span id="r-total"></span></div>
+      </div>
+
+      <button type="submit" class="btn btn-primario" style="margin-top:20px;" id="btn-confirmar">Confirmar e pagar</button>
+      <div id="mensagem-checkout"></div>
+    </form>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+  <script src="js/navegacao.js"></script>
+  <script>
+    document.getElementById('topo').innerHTML = montarTopo('Finalizar compra');
+
+    const TAXA_ENTREGA = 150; // MT — ajusta conforme a tua política de entrega
+
+    const cesto = getCesto();
+    const verifDiv = document.getElementById('verificacao-sessao');
+    const form = document.getElementById('form-checkout');
+
+    (async () => {
+      await aguardarAuth();
+      if (!cesto.length) {
+        verifDiv.innerHTML = `<p class="vazio">O teu cesto está vazio. <a href="index.html" style="color:#B35C38;">Ver produtos →</a></p>`;
+      } else if (!estaAutenticado()) {
+        verifDiv.innerHTML = `<p class="vazio">Precisas de iniciar sessão para finalizar a compra.<br><br>
+          <a href="login.html?proximo=checkout.html" style="color:#B35C38; font-weight:600;">Entrar ou criar conta →</a></p>`;
+      } else {
+        form.style.display = 'block';
+        const subtotal = totalCesto();
+        const total = subtotal + TAXA_ENTREGA;
+        document.getElementById('r-subtotal').textContent = formatarMT(subtotal);
+        document.getElementById('r-entrega').textContent = formatarMT(TAXA_ENTREGA);
+        document.getElementById('r-total').textContent = formatarMT(total);
+      }
+    })();
+
+    document.querySelectorAll('input[name="pagamento"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        document.querySelectorAll('.opcao-pagamento').forEach(o => o.classList.remove('seleccionado'));
+        radio.closest('.opcao-pagamento').classList.add('seleccionado');
+
+        const extraDiv = document.getElementById('campos-extra-pagamento');
+        if (['mpesa', 'emola', 'mkesh'].includes(radio.value)) {
+          extraDiv.innerHTML = `
+            <label>Número de telefone (${radio.value.toUpperCase()})</label>
+            <input type="tel" id="numero-pagamento" required placeholder="84/85 xxx xxxx">
+          `;
+        } else if (radio.value === 'cartao') {
+          extraDiv.innerHTML = `<p style="color:#5B5346; font-size:.85rem; margin-top:14px;">
+            Serás encaminhado para uma página segura de pagamento com cartão após confirmar.</p>`;
+        } else {
+          extraDiv.innerHTML = '';
+        }
+      });
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-confirmar');
+      const msgDiv = document.getElementById('mensagem-checkout');
+      msgDiv.innerHTML = '';
+
+      const metodoEl = document.querySelector('input[name="pagamento"]:checked');
+      if (!metodoEl) { msgDiv.innerHTML = `<div class="mensagem-erro">Escolhe um método de pagamento.</div>`; return; }
+
+      btn.disabled = true;
+      btn.textContent = 'A processar…';
+
+      try {
+        // 1. Criar a encomenda
+        const resp = await criarEncomenda({
+          endereco_entrega: document.getElementById('endereco').value.trim(),
+          cidade_entrega: document.getElementById('cidade').value.trim(),
+          telefone_contacto: document.getElementById('telefone').value.trim(),
+          notas: document.getElementById('notas').value.trim(),
+          metodo_pagamento: metodoEl.value,
+          taxa_entrega: TAXA_ENTREGA,
+        });
+
+        // 2. Iniciar o pagamento
+        const numeroPagamento = document.getElementById('numero-pagamento')?.value.trim();
+        await processarPagamento({
+          encomenda_id: resp.id,
+          metodo: metodoEl.value,
+          numero_telefone: numeroPagamento,
+        });
+
+        guardarCesto([]); // esvaziar cesto
+        window.location.href = `confirmacao.html?codigo=${resp.codigo}`;
+
+      } catch (err) {
+        msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = 'Confirmar e pagar';
+      }
+    });
+  </script>
+</body>
+</html>
