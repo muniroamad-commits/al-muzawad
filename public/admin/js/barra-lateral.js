@@ -5,6 +5,7 @@ function montarBarraLateral(paginaActiva) {
     { href: 'produtos.html', label: 'Produtos', id: 'produtos' },
     { href: 'encomendas.html', label: 'Encomendas', id: 'encomendas' },
     { href: 'categorias.html', label: 'Categorias', id: 'categorias' },
+    { href: 'relatorios.html', label: 'Relatórios', id: 'relatorios' },
   ];
 
   const nav = itens.map(i =>
