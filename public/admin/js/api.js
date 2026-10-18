@@ -183,6 +183,78 @@ async function obterDashboard() {
   };
 }
 
+/* ---------------- Relatórios de vendas ---------------- */
+
+/** Recolhe e agrega os dados de vendas para o relatório.
+ * Considera-se "venda" qualquer encomenda que não tenha sido cancelada.
+ * dataInicioStr / dataFimStr: strings 'YYYY-MM-DD' (de um <input type="date">) ou '' para sem limite. */
+async function obterDadosRelatorioVendas(dataInicioStr = '', dataFimStr = '') {
+  const snap = await db.collection('encomendas').orderBy('criado_em', 'desc').get();
+  let encomendas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  encomendas = encomendas.filter(e => e.status !== 'cancelado');
+
+  if (dataInicioStr) {
+    const inicio = new Date(dataInicioStr + 'T00:00:00');
+    encomendas = encomendas.filter(e => {
+      const data = e.criado_em?.toDate ? e.criado_em.toDate() : null;
+      return data && data >= inicio;
+    });
+  }
+  if (dataFimStr) {
+    const fim = new Date(dataFimStr + 'T23:59:59');
+    encomendas = encomendas.filter(e => {
+      const data = e.criado_em?.toDate ? e.criado_em.toDate() : null;
+      return data && data <= fim;
+    });
+  }
+
+  const totalVendas = encomendas.reduce((s, e) => s + (e.total || 0), 0);
+  const totalEntrega = encomendas.reduce((s, e) => s + (e.taxa_entrega || 0), 0);
+  const totalProdutos = totalVendas - totalEntrega;
+  const numEncomendas = encomendas.length;
+  const ticketMedio = numEncomendas ? totalVendas / numEncomendas : 0;
+
+  const mapaCidade = {};
+  const mapaProduto = {};
+  const mapaPagamento = {};
+  const mapaStatus = {};
+
+  encomendas.forEach(e => {
+    const cidade = (e.cidade_entrega || '').trim() || 'Não especificada';
+    if (!mapaCidade[cidade]) mapaCidade[cidade] = { cidade, encomendas: 0, total: 0 };
+    mapaCidade[cidade].encomendas++;
+    mapaCidade[cidade].total += e.total || 0;
+
+    const metodo = (e.metodo_pagamento || 'desconhecido').toUpperCase();
+    if (!mapaPagamento[metodo]) mapaPagamento[metodo] = { metodo, encomendas: 0, total: 0 };
+    mapaPagamento[metodo].encomendas++;
+    mapaPagamento[metodo].total += e.total || 0;
+
+    const status = e.status || 'desconhecido';
+    mapaStatus[status] = (mapaStatus[status] || 0) + 1;
+
+    (e.itens || []).forEach(it => {
+      const chave = it.nome_produto || 'Produto';
+      if (!mapaProduto[chave]) mapaProduto[chave] = { nome: chave, quantidade: 0, total: 0 };
+      mapaProduto[chave].quantidade += it.quantidade || 0;
+      mapaProduto[chave].total += it.subtotal || 0;
+    });
+  });
+
+  const porCidade = Object.values(mapaCidade).sort((a, b) => b.total - a.total);
+  const porProduto = Object.values(mapaProduto).sort((a, b) => b.quantidade - a.quantidade);
+  const porPagamento = Object.values(mapaPagamento).sort((a, b) => b.total - a.total);
+  const porStatus = Object.keys(mapaStatus).map(s => ({ status: s, encomendas: mapaStatus[s] }));
+
+  return {
+    periodo: { inicio: dataInicioStr || null, fim: dataFimStr || null },
+    resumo: { totalVendas, totalEntrega, totalProdutos, numEncomendas, ticketMedio },
+    porCidade, porProduto, porPagamento, porStatus,
+    encomendas,
+  };
+}
+
 /* ---------------- Utilitários ---------------- */
 
 function formatarMT(valor) {
