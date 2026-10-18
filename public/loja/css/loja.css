@@ -143,9 +143,11 @@ img { max-width: 100%; display: block; }
 .btn-primario:disabled { opacity: .5; }
 .btn-secundario { background: #fff; color: var(--cor-marca-escura); border: 1px solid var(--cor-borda); }
 .btn-fixo-baixo {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  position: fixed; bottom: 64px; left: 0; right: 0;
   padding: 14px 18px; background: linear-gradient(to top, var(--cor-fundo) 60%, transparent);
+  z-index: 9;
 }
+body { padding-bottom: 64px; }
 
 /* --- Barra inferior de navegação (estilo app) --- */
 .barra-inferior {
