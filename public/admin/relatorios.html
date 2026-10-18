@@ -20,6 +20,7 @@
 <script src="../firebase-init.js"></script>
 <script src="js/api.js"></script>
   <script src="js/barra-lateral.js"></script>
+  <script src="js/logo-base64.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script>
@@ -31,9 +32,12 @@
       document.getElementById('app-shell').innerHTML = montarBarraLateral('relatorios') + `
         <main class="conteudo">
           <div class="cabecalho-pagina">
-            <div>
-              <h1>Relatórios de Vendas</h1>
-              <p>Estatísticas de vendas, produtos e cidades de entrega</p>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <img src="assets/icone.png" alt="" style="height:44px; width:44px; object-fit:contain; border-radius:50%;">
+              <div>
+                <h1>Relatórios de Vendas</h1>
+                <p>Estatísticas de vendas, produtos e cidades de entrega</p>
+              </div>
             </div>
             <button class="btn btn-primario" id="btn-pdf" disabled>⬇ Descarregar PDF</button>
           </div>
@@ -153,99 +157,185 @@
       return `${dia}/${mes}/${ano}`;
     }
 
+    // Paleta oficial da marca Al Muzawad (RGB)
+    const COR_INDIGO = [35, 58, 94];       // #233A5E
+    const COR_BARRO = [179, 92, 56];       // #B35C38
+    const COR_OLIVEIRA = [112, 123, 74];   // #707B4A
+    const COR_AREIA = [237, 228, 207];     // #EDE4CF
+    const COR_CREME = [247, 242, 230];     // #F7F2E6
+    const COR_CARVAO = [42, 33, 24];       // #2A2118
+    const COR_CARVAO_SUAVE = [91, 83, 70]; // #5B5346
+    const COR_BORDA = [227, 213, 184];     // #E3D5B8
+
+    function desenharCartaoEstatistica(doc, x, y, largura, altura, rotulo, valor, corAccent) {
+      doc.setDrawColor(...COR_BORDA);
+      doc.setFillColor(...COR_CREME);
+      doc.roundedRect(x, y, largura, altura, 2.2, 2.2, 'FD');
+
+      doc.setFillColor(...corAccent);
+      doc.roundedRect(x, y, largura, 2, 2.2, 2.2, 'F');
+      doc.rect(x, y + 1, largura, 1.2, 'F'); // esconde o arredondado inferior da barra
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.8);
+      doc.setTextColor(...COR_CARVAO_SUAVE);
+      doc.text(rotulo, x + 5, y + 10, { maxWidth: largura - 10 });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13.5);
+      doc.setTextColor(...COR_INDIGO);
+      doc.text(String(valor), x + 5, y + 19, { maxWidth: largura - 10 });
+    }
+
+    function desenharTituloSeccao(doc, x, y, texto, corAccent) {
+      doc.setFillColor(...corAccent);
+      doc.rect(x, y - 4, 2.4, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11.5);
+      doc.setTextColor(...COR_CARVAO);
+      doc.text(texto, x + 6, y);
+    }
+
+    function desenharCabecalhoSecundario(doc) {
+      const largura = doc.internal.pageSize.getWidth();
+      doc.setFillColor(...COR_INDIGO);
+      doc.rect(0, 0, largura, 14, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(...COR_CREME);
+      doc.text('AL MUZAWAD', 14, 9);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...COR_AREIA);
+      doc.text('Relatório de Vendas', largura - 14, 9, { align: 'right' });
+    }
+
+    function desenharRodape(doc, pagina, totalPaginas) {
+      const largura = doc.internal.pageSize.getWidth();
+      const altura = doc.internal.pageSize.getHeight();
+      doc.setDrawColor(...COR_BORDA);
+      doc.setLineWidth(0.2);
+      doc.line(14, altura - 14, largura - 14, altura - 14);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...COR_CARVAO_SUAVE);
+      doc.text('Al Muzawad — Cosméticos artesanais', 14, altura - 9);
+      doc.text(`Página ${pagina} de ${totalPaginas}`, largura - 14, altura - 9, { align: 'right' });
+    }
+
     function descarregarPDF() {
       if (!dadosRelatorioActual) return;
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       const d = dadosRelatorioActual;
       const r = d.resumo;
+      const largura = doc.internal.pageSize.getWidth();
 
       const hoje = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const periodoTexto = (d.periodo.inicio || d.periodo.fim)
         ? `${d.periodo.inicio ? formatarDataSimples(d.periodo.inicio) : 'Início'} a ${d.periodo.fim ? formatarDataSimples(d.periodo.fim) : hoje}`
         : 'Todo o histórico';
 
-      const corMarca = [35, 58, 94];      // índigo
-      const corTextoSuave = [90, 83, 70]; // carvão suave
+      /* ---- Faixa de cabeçalho da marca (página 1) ---- */
+      doc.setFillColor(...COR_INDIGO);
+      doc.rect(0, 0, largura, 40, 'F');
+      doc.setFillColor(...COR_BARRO);
+      doc.rect(0, 40, largura, 1.4, 'F');
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.setTextColor(...corMarca);
-      doc.text('Al Muzawad', 14, 18);
-
-      doc.setFontSize(13);
-      doc.setTextColor(40, 35, 25);
-      doc.text('Relatório de Vendas', 14, 26);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(...corTextoSuave);
-      doc.text(`Período: ${periodoTexto}`, 14, 33);
-      doc.text(`Gerado em: ${hoje}`, 14, 38);
-
-      let y = 48;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(30, 25, 20);
-      doc.text('Resumo', 14, y);
-      y += 6;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9.5);
-      [
-        `Vendas totais: ${formatarMT(r.totalVendas)}`,
-        `Nº de encomendas: ${r.numEncomendas}`,
-        `Ticket médio: ${formatarMT(r.ticketMedio)}`,
-        `Total cobrado em entregas: ${formatarMT(r.totalEntrega)}`,
-      ].forEach(linha => { doc.text(linha, 14, y); y += 5.5; });
-      y += 6;
-
-      function tituloSeccao(texto) {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(30, 25, 20);
-        doc.text(texto, 14, y);
-        y += 6;
+      if (typeof LOGO_SELO_BASE64 !== 'undefined') {
+        doc.addImage(LOGO_SELO_BASE64, 'PNG', 14, 6, 28, 28);
       }
 
-      tituloSeccao('Vendas por cidade');
+      doc.setFont('times', 'bold');
+      doc.setFontSize(19);
+      doc.setTextColor(...COR_CREME);
+      doc.text('AL MUZAWAD', 48, 20, { charSpace: 0.6 });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(...COR_AREIA);
+      doc.text('Relatório de Vendas', 48, 28);
+
+      doc.setFontSize(8.5);
+      doc.setTextColor(...COR_AREIA);
+      doc.text(`Período: ${periodoTexto}`, largura - 14, 16, { align: 'right' });
+      doc.text(`Gerado em: ${hoje}`, largura - 14, 22, { align: 'right' });
+
+      let y = 54;
+
+      /* ---- Cartões de resumo ---- */
+      const gap = 4;
+      const larguraCartao = (largura - 28 - gap * 3) / 4;
+      const alturaCartao = 24;
+      const cartoes = [
+        { rotulo: 'Vendas totais', valor: formatarMT(r.totalVendas), cor: COR_BARRO },
+        { rotulo: 'Nº de encomendas', valor: String(r.numEncomendas), cor: COR_OLIVEIRA },
+        { rotulo: 'Ticket médio', valor: formatarMT(r.ticketMedio), cor: COR_INDIGO },
+        { rotulo: 'Total em entregas', valor: formatarMT(r.totalEntrega), cor: COR_BARRO },
+      ];
+      cartoes.forEach((c, i) => {
+        const x = 14 + i * (larguraCartao + gap);
+        desenharCartaoEstatistica(doc, x, y, larguraCartao, alturaCartao, c.rotulo, c.valor, c.cor);
+      });
+      y += alturaCartao + 14;
+
+      const estiloTabela = {
+        theme: 'grid',
+        styles: {
+          fontSize: 9,
+          textColor: COR_CARVAO,
+          lineColor: COR_BORDA,
+          lineWidth: 0.15,
+          cellPadding: 3.2,
+        },
+        headStyles: {
+          fillColor: COR_INDIGO,
+          textColor: COR_CREME,
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        alternateRowStyles: { fillColor: COR_CREME },
+        margin: { left: 14, right: 14, top: 22 },
+      };
+
+      function novaSeccao(texto, corAccent) {
+        if (y > 265) { doc.addPage(); desenharCabecalhoSecundario(doc); y = 24; }
+        desenharTituloSeccao(doc, 14, y, texto, corAccent);
+        y += 5;
+      }
+
+      novaSeccao('Vendas por cidade', COR_BARRO);
       doc.autoTable({
+        ...estiloTabela,
         startY: y,
         head: [['Cidade', 'Encomendas', 'Total']],
         body: d.porCidade.length ? d.porCidade.map(c => [c.cidade, String(c.encomendas), formatarMT(c.total)]) : [['Sem dados', '-', '-']],
-        headStyles: { fillColor: corMarca },
-        styles: { fontSize: 9 },
-        margin: { left: 14, right: 14 },
       });
       y = doc.lastAutoTable.finalY + 12;
 
-      tituloSeccao('Produtos mais vendidos');
+      novaSeccao('Produtos mais vendidos', COR_OLIVEIRA);
       doc.autoTable({
+        ...estiloTabela,
         startY: y,
         head: [['Produto', 'Qtd. vendida', 'Receita']],
         body: d.porProduto.length ? d.porProduto.map(p => [p.nome, String(p.quantidade), formatarMT(p.total)]) : [['Sem dados', '-', '-']],
-        headStyles: { fillColor: corMarca },
-        styles: { fontSize: 9 },
-        margin: { left: 14, right: 14 },
       });
       y = doc.lastAutoTable.finalY + 12;
 
-      tituloSeccao('Vendas por método de pagamento');
+      novaSeccao('Vendas por método de pagamento', COR_INDIGO);
       doc.autoTable({
+        ...estiloTabela,
         startY: y,
         head: [['Método', 'Encomendas', 'Total']],
         body: d.porPagamento.length ? d.porPagamento.map(p => [p.metodo, String(p.encomendas), formatarMT(p.total)]) : [['Sem dados', '-', '-']],
-        headStyles: { fillColor: corMarca },
-        styles: { fontSize: 9 },
-        margin: { left: 14, right: 14 },
       });
       y = doc.lastAutoTable.finalY + 12;
 
-      tituloSeccao(`Encomendas incluídas (${d.encomendas.length})`);
+      novaSeccao(`Encomendas incluídas (${d.encomendas.length})`, COR_BARRO);
       doc.autoTable({
+        ...estiloTabela,
         startY: y,
+        styles: { ...estiloTabela.styles, fontSize: 8 },
         head: [['Código', 'Cliente', 'Cidade', 'Total', 'Estado', 'Data']],
         body: d.encomendas.length ? d.encomendas.map(e => [
           e.codigo,
@@ -255,10 +345,14 @@
           ROTULOS_STATUS[e.status] || e.status,
           formatarData(e.criado_em),
         ]) : [['—', '—', '—', '—', '—', '—']],
-        headStyles: { fillColor: corMarca },
-        styles: { fontSize: 8 },
-        margin: { left: 14, right: 14 },
       });
+
+      /* ---- Rodapé em todas as páginas ---- */
+      const totalPaginas = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPaginas; i++) {
+        doc.setPage(i);
+        desenharRodape(doc, i, totalPaginas);
+      }
 
       const nomeFicheiro = `relatorio-vendas-al-muzawad-${new Date().toISOString().slice(0, 10)}.pdf`;
       doc.save(nomeFicheiro);
