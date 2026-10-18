@@ -2,10 +2,10 @@
 // Substitui estes valores pelos que aparecem em:
 // Firebase Console → Definições do projecto → As tuas apps → app Web → "Config".
 const FIREBASE_CONFIG = {
-  apiKey: "COLOCAR_AQUI",
-  authDomain: "COLOCAR_AQUI.firebaseapp.com",
-  projectId: "COLOCAR_AQUI",
-  storageBucket: "COLOCAR_AQUI.appspot.com",
-  messagingSenderId: "COLOCAR_AQUI",
-  appId: "COLOCAR_AQUI",
+  apiKey: "AIzaSyC6ZHihaU2bELis_5gDlHSoQqnINz0Yd8w",
+  authDomain: "al-muzawad.firebaseapp.com",
+  projectId: "al-muzawad",
+  storageBucket: "al-muzawad.firebasestorage.app",
+  messagingSenderId: "211612428507",
+  appId: "1:211612428507:web:68c478a6209386440044fe",
 };
