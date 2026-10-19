@@ -310,11 +310,26 @@ async function obterDadosRelatorioVendas(dataInicioStr = '', dataFimStr = '') {
   const porPagamento = Object.values(mapaPagamento).sort((a, b) => b.total - a.total);
   const porStatus = Object.keys(mapaStatus).map(s => ({ status: s, encomendas: mapaStatus[s] }));
 
+  // Stock actual: é uma fotografia do momento, não depende do período filtrado.
+  const produtosSnap = await db.collection('produtos').orderBy('nome').get();
+  const produtosStock = produtosSnap.docs.map(d => {
+    const p = d.data();
+    const stock = p.stock ?? 0;
+    const stock_minimo = p.stock_minimo ?? 3;
+    return {
+      nome: p.nome || 'Produto',
+      stock,
+      stock_minimo,
+      baixo: stock <= stock_minimo,
+    };
+  });
+
   return {
     periodo: { inicio: dataInicioStr || null, fim: dataFimStr || null },
     resumo: { totalVendas, totalEntrega, totalProdutos, numEncomendas, ticketMedio },
     porCidade, porProduto, porPagamento, porStatus,
     encomendas,
+    produtosStock,
   };
 }
 

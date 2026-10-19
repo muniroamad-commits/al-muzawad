@@ -123,6 +123,16 @@
             </tr>`).join('')
         : `<tr><td colspan="6" class="vazio">Nenhuma encomenda no período seleccionado.</td></tr>`;
 
+      const linhasStock = (d.produtosStock || []).length
+        ? d.produtosStock.map(p => `
+            <tr>
+              <td>${p.nome}</td>
+              <td>${p.stock} un.</td>
+              <td>${p.stock_minimo} un.</td>
+              <td>${p.baixo ? '<span class="etiqueta cancelado">Stock baixo</span>' : '<span class="etiqueta entregue">OK</span>'}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="4" class="vazio">Nenhum produto registado.</td></tr>`;
+
       container.innerHTML = `
         <div class="cartoes-resumo">
           <div class="cartao"><div class="rotulo">Vendas totais</div><div class="valor">${formatarMT(r.totalVendas)}</div></div>
@@ -149,6 +159,11 @@
         <div class="painel">
           <div class="painel-titulo"><h2>Encomendas incluídas (${d.encomendas.length})</h2></div>
           <table><tr><th>Código</th><th>Cliente</th><th>Cidade</th><th>Total</th><th>Estado</th><th>Data</th></tr>${linhasEncomendas}</table>
+        </div>
+
+        <div class="painel">
+          <div class="painel-titulo"><h2>Stock actual de produtos</h2></div>
+          <table><tr><th>Produto</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th></tr>${linhasStock}</table>
         </div>
       `;
     }
@@ -346,6 +361,26 @@
           ROTULOS_STATUS[e.status] || e.status,
           formatarData(e.criado_em),
         ]) : [['—', '—', '—', '—', '—', '—']],
+      });
+      y = doc.lastAutoTable.finalY + 12;
+
+      const produtosStock = d.produtosStock || [];
+      novaSeccao('Stock actual de produtos', COR_OLIVEIRA);
+      doc.autoTable({
+        ...estiloTabela,
+        startY: y,
+        head: [['Produto', 'Stock actual', 'Stock mínimo', 'Estado']],
+        body: produtosStock.length ? produtosStock.map(p => [
+          p.nome, `${p.stock} un.`, `${p.stock_minimo} un.`, p.baixo ? 'Stock baixo' : 'OK',
+        ]) : [['Sem produtos', '-', '-', '-']],
+        didParseCell: (dados) => {
+          if (dados.section !== 'body') return;
+          const linha = produtosStock[dados.row.index];
+          if (linha && linha.baixo) {
+            dados.cell.styles.textColor = COR_BARRO;
+            dados.cell.styles.fontStyle = 'bold';
+          }
+        },
       });
 
       /* ---- Rodapé em todas as páginas ---- */
