@@ -2,7 +2,7 @@ function montarBarraLateral(paginaActiva) {
 const nome = localStorage.getItem('admin_nome') || 'Admin';
 const papel = localStorage.getItem('admin_papel') || 'admin';
 const itensCompletos = [
-{ href: 'index.html', label: 'Dashboard', id: 'dashboard' },
+{ href: 'index.html', label: 'Painel Geral', id: 'dashboard' },
 { href: 'produtos.html', label: 'Produtos', id: 'produtos' },
 { href: 'encomendas.html', label: 'Encomendas', id: 'encomendas' },
 { href: 'categorias.html', label: 'Categorias', id: 'categorias' },
