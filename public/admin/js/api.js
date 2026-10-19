@@ -53,8 +53,52 @@ function traduzirErroAuthAdmin(err) {
     'auth/user-not-found': 'Credenciais inválidas.',
     'auth/wrong-password': 'Credenciais inválidas.',
     'auth/invalid-credential': 'Credenciais inválidas.',
+    'auth/email-already-in-use': 'Já existe uma conta com este email.',
+    'auth/weak-password': 'A senha deve ter pelo menos 6 caracteres.',
   };
   return mapa[err.code] || err.message || 'Ocorreu um erro inesperado.';
+}
+
+/* ---------------- Administradores ---------------- */
+
+/** Lista todas as contas com acesso ao painel admin. */
+async function listarAdmins() {
+  const snap = await db.collection('admins').orderBy('nome').get();
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+}
+
+/** Regista um novo administrador/colaborador sem terminar a sessão actual.
+ * O SDK do Firebase não tem um "Admin SDK" no browser, por isso criar uma conta
+ * com auth.createUserWithEmailAndPassword() na app principal iniciaria sessão
+ * automaticamente como essa nova conta. Para evitar isso, usa-se uma app
+ * Firebase secundária só para criar a conta Auth; a sessão do admin actual
+ * (na app principal) nunca é tocada. */
+async function criarAdmin(nome, email, senha) {
+  const nomeAppSecundaria = 'secundaria_' + Date.now();
+  const appSecundaria = firebase.initializeApp(FIREBASE_CONFIG, nomeAppSecundaria);
+  try {
+    const cred = await appSecundaria.auth().createUserWithEmailAndPassword(email, senha);
+    await db.collection('admins').doc(cred.user.uid).set({
+      nome: nome,
+      email: email,
+      criado_em: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    await appSecundaria.auth().signOut();
+  } catch (err) {
+    throw new Error(traduzirErroAuthAdmin(err));
+  } finally {
+    await appSecundaria.delete();
+  }
+}
+
+/** Remove o acesso de administrador. Só apaga o documento em "admins";
+ * a conta de autenticação em si continua a existir (sem backend/Admin SDK
+ * não é possível apagar a conta Auth a partir do browser). */
+async function apagarAdmin(uid) {
+  if (auth.currentUser && auth.currentUser.uid === uid) {
+    throw new Error('Não podes remover o teu próprio acesso.');
+  }
+  await db.collection('admins').doc(uid).delete();
 }
 
 /* ---------------- Categorias ---------------- */

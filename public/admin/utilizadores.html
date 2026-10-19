@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Utilizadores — Painel Admin Al Muzawad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell"></div>
+
+<script src="../vendor/firebase/firebase-app-compat.js"></script>
+<script src="../vendor/firebase/firebase-auth-compat.js"></script>
+<script src="../vendor/firebase/firebase-firestore-compat.js"></script>
+<script src="../vendor/firebase/firebase-storage-compat.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../firebase-init.js"></script>
+<script src="js/api.js"></script>
+<script src="js/barra-lateral.js"></script>
+<script>
+(async () => {
+await exigirSessaoAdmin();
+
+document.getElementById('app-shell').innerHTML = montarBarraLateral('utilizadores') + `
+<main class="conteudo">
+<div class="cabecalho-pagina">
+<div>
+<h1>Utilizadores</h1>
+<p>Regista novos administradores para a equipa</p>
+</div>
+</div>
+
+<div class="painel">
+<form id="form-admin" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+<div style="flex:1; min-width:160px;">
+<label>Nome</label>
+<input type="text" id="a-nome" required placeholder="Nome completo">
+</div>
+<div style="flex:1; min-width:200px;">
+<label>Email</label>
+<input type="email" id="a-email" required placeholder="email@exemplo.com">
+</div>
+<div style="flex:1; min-width:160px;">
+<label>Senha inicial</label>
+<input type="password" id="a-senha" required minlength="6" placeholder="mínimo 6 caracteres">
+</div>
+<button type="submit" class="btn btn-primario">Registar</button>
+</form>
+<div id="form-mensagem"></div>
+</div>
+
+<div class="painel">
+<table id="tabela-admins"><tbody></tbody></table>
+</div>
+</main>
+`;
+
+document.getElementById('form-admin').addEventListener('submit', async (e) => {
+e.preventDefault();
+const btn = e.target.querySelector('button[type="submit"]');
+const msgDiv = document.getElementById('form-mensagem');
+const nome = document.getElementById('a-nome').value.trim();
+const email = document.getElementById('a-email').value.trim();
+const senha = document.getElementById('a-senha').value;
+btn.disabled = true;
+btn.textContent = 'A registar…';
+try {
+await criarAdmin(nome, email, senha);
+document.getElementById('form-admin').reset();
+msgDiv.innerHTML = `<div class="mensagem-sucesso">Administrador registado com sucesso.</div>`;
+carregarAdmins();
+} catch (err) {
+msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
+} finally {
+btn.disabled = false;
+btn.textContent = 'Registar';
+}
+});
+
+carregarAdmins();
+})();
+
+async function carregarAdmins() {
+const tbody = document.querySelector('#tabela-admins tbody');
+tbody.innerHTML = `<tr><td class="vazio">A carregar…</td></tr>`;
+try {
+const lista = await listarAdmins();
+const meuUid = auth.currentUser ? auth.currentUser.uid : null;
+tbody.innerHTML = lista.length
+? `<tr><th>Nome</th><th>Email</th><th></th></tr>` + lista.map(a => `
+<tr>
+<td>${a.nome || '—'}</td>
+<td>${a.email || '—'}</td>
+<td style="text-align:right;">
+${a.uid === meuUid
+  ? '<span style="color:#9A907A; font-size:.85rem;">Tu</span>'
+  : `<button type="button" onclick="removerAdmin('${a.uid}')" style="background:none;border:none;color:#B35C38;font-weight:600;cursor:pointer;font-family:inherit;font-size:.85rem;">Remover</button>`}
+</td>
+</tr>`).join('')
+: `<tr><td class="vazio">Nenhum administrador ainda.</td></tr>`;
+} catch (err) {
+tbody.innerHTML = `<tr><td class="mensagem-erro">${err.message}</td></tr>`;
+}
+}
+
+async function removerAdmin(uid) {
+if (!confirm('Remover o acesso deste administrador ao painel? A conta não é apagada, apenas o acesso.')) return;
+try {
+await apagarAdmin(uid);
+carregarAdmins();
+} catch (err) {
+alert(err.message);
+}
+}
+</script>
+</body>
+</html>
