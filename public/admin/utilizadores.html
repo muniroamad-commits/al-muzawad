@@ -23,13 +23,14 @@
 <script>
 (async () => {
 await exigirSessaoAdmin();
+if (!exigirPapelAdmin()) return;
 
 document.getElementById('app-shell').innerHTML = montarBarraLateral('utilizadores') + `
 <main class="conteudo">
 <div class="cabecalho-pagina">
 <div>
 <h1>Utilizadores</h1>
-<p>Regista novos administradores para a equipa</p>
+<p>Regista novos administradores ou operadores para a equipa</p>
 </div>
 </div>
 
@@ -46,6 +47,13 @@ document.getElementById('app-shell').innerHTML = montarBarraLateral('utilizadore
 <div style="flex:1; min-width:160px;">
 <label>Senha inicial</label>
 <input type="password" id="a-senha" required minlength="6" placeholder="mínimo 6 caracteres">
+</div>
+<div style="min-width:160px;">
+<label>Papel</label>
+<select id="a-papel">
+<option value="admin">Administrador (acesso total)</option>
+<option value="operador">Operador (só Encomendas)</option>
+</select>
 </div>
 <button type="submit" class="btn btn-primario">Registar</button>
 </form>
@@ -65,12 +73,13 @@ const msgDiv = document.getElementById('form-mensagem');
 const nome = document.getElementById('a-nome').value.trim();
 const email = document.getElementById('a-email').value.trim();
 const senha = document.getElementById('a-senha').value;
+const papel = document.getElementById('a-papel').value;
 btn.disabled = true;
 btn.textContent = 'A registar…';
 try {
-await criarAdmin(nome, email, senha);
+await criarAdmin(nome, email, senha, papel);
 document.getElementById('form-admin').reset();
-msgDiv.innerHTML = `<div class="mensagem-sucesso">Administrador registado com sucesso.</div>`;
+msgDiv.innerHTML = `<div class="mensagem-sucesso">Utilizador registado com sucesso.</div>`;
 carregarAdmins();
 } catch (err) {
 msgDiv.innerHTML = `<div class="mensagem-erro">${err.message}</div>`;
@@ -83,6 +92,10 @@ btn.textContent = 'Registar';
 carregarAdmins();
 })();
 
+function rotuloPapel(papel) {
+return papel === 'operador' ? 'Operador' : 'Administrador';
+}
+
 async function carregarAdmins() {
 const tbody = document.querySelector('#tabela-admins tbody');
 tbody.innerHTML = `<tr><td class="vazio">A carregar…</td></tr>`;
@@ -90,24 +103,25 @@ try {
 const lista = await listarAdmins();
 const meuUid = auth.currentUser ? auth.currentUser.uid : null;
 tbody.innerHTML = lista.length
-? `<tr><th>Nome</th><th>Email</th><th></th></tr>` + lista.map(a => `
+? `<tr><th>Nome</th><th>Email</th><th>Papel</th><th></th></tr>` + lista.map(a => `
 <tr>
 <td>${a.nome || '—'}</td>
 <td>${a.email || '—'}</td>
+<td>${rotuloPapel(a.papel)}</td>
 <td style="text-align:right;">
 ${a.uid === meuUid
   ? '<span style="color:#9A907A; font-size:.85rem;">Tu</span>'
   : `<button type="button" onclick="removerAdmin('${a.uid}')" style="background:none;border:none;color:#B35C38;font-weight:600;cursor:pointer;font-family:inherit;font-size:.85rem;">Remover</button>`}
 </td>
 </tr>`).join('')
-: `<tr><td class="vazio">Nenhum administrador ainda.</td></tr>`;
+: `<tr><td class="vazio">Nenhum utilizador ainda.</td></tr>`;
 } catch (err) {
 tbody.innerHTML = `<tr><td class="mensagem-erro">${err.message}</td></tr>`;
 }
 }
 
 async function removerAdmin(uid) {
-if (!confirm('Remover o acesso deste administrador ao painel? A conta não é apagada, apenas o acesso.')) return;
+if (!confirm('Remover o acesso deste utilizador ao painel? A conta não é apagada, apenas o acesso.')) return;
 try {
 await apagarAdmin(uid);
 carregarAdmins();
