@@ -8,6 +8,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="stylesheet" href="css/loja.css">
+<script>
+  // Dentro da app instalada (Capacitor), a Google e o Facebook bloqueiam o
+  // login social por razões de segurança. Escondemos o link só aí — no
+  // site continua a aparecer normalmente.
+  if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+    document.documentElement.classList.add('app-nativa');
+  }
+</script>
+<style>
+  .app-nativa #link-social,
+  .app-nativa #divisor-social { display: none !important; }
+</style>
 </head>
 <body>
   <main class="conteudo" style="padding-top:50px; max-width:420px;">
@@ -15,8 +27,8 @@
     <h1 style="text-align:center;">Criar conta</h1>
     <p style="text-align:center; color:#5B5346; margin-bottom:26px;">Para comprares com rapidez da próxima vez</p>
 
-    <a href="login.html" class="btn btn-secundario" style="margin-bottom:18px;">Criar conta com Google ou Facebook →</a>
-    <div style="display:flex; align-items:center; gap:12px; margin:18px 0; color:#5B5346; font-size:.82rem;">
+    <a href="login.html" class="btn btn-secundario" id="link-social" style="margin-bottom:18px;">Criar conta com Google ou Facebook →</a>
+    <div id="divisor-social" style="display:flex; align-items:center; gap:12px; margin:18px 0; color:#5B5346; font-size:.82rem;">
       <div style="flex:1; height:1px; background:#E3D5B8;"></div>com email<div style="flex:1; height:1px; background:#E3D5B8;"></div>
     </div>
 
