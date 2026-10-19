@@ -8,6 +8,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="stylesheet" href="css/loja.css">
+<script>
+  // Dentro da app instalada (Capacitor), a Google e o Facebook bloqueiam o
+  // login social por razões de segurança (não permitem dentro de "WebViews").
+  // Por isso escondemos esses botões só quando estamos dentro da app — no
+  // site continuam a aparecer normalmente.
+  if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+    document.documentElement.classList.add('app-nativa');
+  }
+</script>
 <style>
   .divisor { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: #5B5346; font-size: .82rem; }
   .divisor::before, .divisor::after { content: ''; flex: 1; height: 1px; background: #E3D5B8; }
@@ -20,6 +29,11 @@
   .btn-social img, .btn-social svg { width: 18px; height: 18px; }
   .btn-facebook { background: #1877F2; color: #fff; border-color: #1877F2; }
   #google-botao-real { display: none; } /* botão real do Google, invocado por trás do nosso botão estilizado */
+
+  /* Esconde login social só dentro da app instalada */
+  .app-nativa #btn-google,
+  .app-nativa #btn-facebook,
+  .app-nativa #divisor-social { display: none !important; }
 </style>
 </head>
 <body>
@@ -38,7 +52,7 @@
       Continuar com Facebook
     </button>
 
-    <div class="divisor">ou com email</div>
+    <div class="divisor" id="divisor-social">ou com email</div>
 
     <form id="form-login">
       <label>Email</label>
