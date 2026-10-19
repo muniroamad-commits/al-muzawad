@@ -9,8 +9,7 @@ service cloud.firestore {
     }
 
     function papelDoUtilizador() {
-      let dados = get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
-      return dados.papel != null ? dados.papel : 'admin';
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('papel', 'admin');
     }
 
     function isAdminCompleto() {
