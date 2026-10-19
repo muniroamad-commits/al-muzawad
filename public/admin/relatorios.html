@@ -28,6 +28,7 @@
 
     (async () => {
       await exigirSessaoAdmin();
+      if (!exigirPapelAdmin()) return;
 
       document.getElementById('app-shell').innerHTML = montarBarraLateral('relatorios') + `
         <main class="conteudo">

@@ -23,6 +23,7 @@
   <script>
     (async () => {
     await exigirSessaoAdmin();
+    if (!exigirPapelAdmin()) return;
 
     document.getElementById('app-shell').innerHTML = montarBarraLateral('dashboard') + `
       <main class="conteudo">

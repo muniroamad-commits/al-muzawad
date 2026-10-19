@@ -30,6 +30,7 @@ async function exigirSessaoAdmin() {
     return;
   }
   localStorage.setItem('admin_nome', doc.data().nome || user.email || 'Admin');
+  localStorage.setItem('admin_papel', doc.data().papel || 'admin');
 }
 
 async function entrarComoAdmin(email, senha) {
@@ -41,10 +42,27 @@ async function entrarComoAdmin(email, senha) {
       throw new Error('Esta conta não tem acesso ao painel admin.');
     }
     localStorage.setItem('admin_nome', doc.data().nome || cred.user.email);
+    localStorage.setItem('admin_papel', doc.data().papel || 'admin');
     return cred.user;
   } catch (err) {
     throw new Error(traduzirErroAuthAdmin(err));
   }
+}
+
+/** Devolve o papel da sessão actual: 'admin' (acesso total) ou 'operador' (só atendimento). */
+function obterPapelAdmin() {
+  return localStorage.getItem('admin_papel') || 'admin';
+}
+
+/** Protege uma página de gestão (tudo excepto Encomendas) contra operadores.
+ * Chamar logo a seguir a exigirSessaoAdmin(); se devolver false, a página
+ * já foi redireccionada e o resto do script não deve continuar a correr. */
+function exigirPapelAdmin() {
+  if (obterPapelAdmin() !== 'admin') {
+    window.location.href = 'encomendas.html';
+    return false;
+  }
+  return true;
 }
 
 function traduzirErroAuthAdmin(err) {
@@ -73,7 +91,7 @@ async function listarAdmins() {
  * automaticamente como essa nova conta. Para evitar isso, usa-se uma app
  * Firebase secundária só para criar a conta Auth; a sessão do admin actual
  * (na app principal) nunca é tocada. */
-async function criarAdmin(nome, email, senha) {
+async function criarAdmin(nome, email, senha, papel = 'admin') {
   const nomeAppSecundaria = 'secundaria_' + Date.now();
   const appSecundaria = firebase.initializeApp(FIREBASE_CONFIG, nomeAppSecundaria);
   try {
@@ -81,6 +99,7 @@ async function criarAdmin(nome, email, senha) {
     await db.collection('admins').doc(cred.user.uid).set({
       nome: nome,
       email: email,
+      papel: papel === 'operador' ? 'operador' : 'admin',
       criado_em: firebase.firestore.FieldValue.serverTimestamp(),
     });
     await appSecundaria.auth().signOut();

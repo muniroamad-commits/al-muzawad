@@ -8,37 +8,52 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function papelDoUtilizador() {
+      let dados = get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+      return dados.papel != null ? dados.papel : 'admin';
+    }
+
+    function isAdminCompleto() {
+      return isAdmin() && papelDoUtilizador() == 'admin';
+    }
+
     function isOwner(clienteId) {
       return request.auth != null && request.auth.uid == clienteId;
     }
 
     // Catálogo: qualquer visitante pode ler (loja pública).
-    // Só admins autenticados podem escrever.
+    // Só administradores completos (não operadores) podem escrever.
     match /categorias/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdminCompleto();
     }
 
     match /produtos/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdminCompleto();
     }
 
-    // Perfis de admin: cada admin só lê o seu próprio registo
-    // (a existência do doc é o que concede o papel de admin).
+    // Perfis de admin: qualquer membro da equipa lê o seu próprio documento
+    // (para confirmar sessão e papel); só administradores completos podem
+    // ver a lista toda e registar/remover colaboradores.
     match /admins/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false; // criado manualmente na consola/Firestore, nunca pelo cliente
+      allow get: if request.auth != null && (request.auth.uid == uid || isAdminCompleto());
+      allow list: if isAdminCompleto();
+      allow create: if isAdminCompleto();
+      allow update: if false;
+      allow delete: if isAdminCompleto();
     }
 
-    // Perfis de cliente: o próprio cliente lê/escreve o seu perfil; admin lê todos.
+    // Perfis de cliente: o próprio cliente lê/escreve o seu perfil; qualquer
+    // membro da equipa (admin ou operador) pode ler para dar apoio ao cliente.
     match /clientes/{uid} {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if isOwner(uid);
     }
 
     // Encomendas: cliente cria as suas próprias e só lê as suas;
-    // admin lê e actualiza todas (para mudar o estado da encomenda).
+    // qualquer membro da equipa (admin ou operador) lê e actualiza todas
+    // — é o "atendimento" que o operador faz.
     match /encomendas/{id} {
       allow create: if request.auth != null &&
         request.resource.data.cliente_id == request.auth.uid;
